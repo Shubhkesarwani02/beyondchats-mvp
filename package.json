@@ -26,7 +26,8 @@
     "pgvector": "^0.2.1",
     "prisma": "^6.16.3",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-pdf": "^10.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
