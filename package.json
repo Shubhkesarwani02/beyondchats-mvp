@@ -6,7 +6,11 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:rag": "node scripts/rag-test-suite.js",
+    "test:rag-comprehensive": "node scripts/comprehensive-rag-test.js",
+    "test:rag-simple": "node scripts/test-rag.js",
+    "test:open": "start http://localhost:3000/rag-test.html"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

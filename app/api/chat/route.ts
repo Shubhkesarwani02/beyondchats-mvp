@@ -25,7 +25,17 @@ export interface ChatResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, pdfId, k = 5 }: ChatRequest = await request.json();
+    let requestData;
+    try {
+      requestData = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    const { query, pdfId, k = 5 }: ChatRequest = requestData;
 
     // Validate input
     if (!query || query.trim().length === 0) {
