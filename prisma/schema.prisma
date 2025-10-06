@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PDF {
+  id          String   @id @default(cuid())
+  title       String
+  url         String
+  createdAt   DateTime @default(now())
+  chunks      Chunk[]
+  quizzes     Quiz[]
+}
+
+model Chunk {
+  id        String   @id @default(cuid())
+  content   String
+  pageNum   Int
+  // We'll add vector embeddings later once pgvector is properly set up
+  pdf       PDF      @relation(fields: [pdfId], references: [id])
+  pdfId     String
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  pdf         PDF      @relation(fields: [pdfId], references: [id])
+  pdfId       String
+  question    String
+  options     String[]
+  correct     String
+  explanation String?
+  createdAt   DateTime @default(now())
+}
