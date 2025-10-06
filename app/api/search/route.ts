@@ -65,34 +65,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint for testing search functionality
+// GET endpoint: /api/search?q=&pdfId=&k=5
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const pdfId = searchParams.get('pdfId');
-    const limit = parseInt(searchParams.get('limit') || '5');
+    const k = parseInt(searchParams.get('k') || '5'); // Changed from 'limit' to 'k' as per spec
     
-    if (!query) {
+    if (!query || query.trim().length === 0) {
       return NextResponse.json(
         { error: 'Query parameter "q" is required' },
         { status: 400 }
       );
     }
 
+    // Embed query text with Gemini embeddings and perform vector search
     let results;
     if (pdfId) {
-      results = await searchSimilarChunks(query, pdfId, limit);
+      results = await searchSimilarChunks(query, pdfId, k, 0.3);
     } else {
-      results = await globalSemanticSearch(query, limit);
+      results = await globalSemanticSearch(query, k, 0.3);
     }
+
+    // Format results to include page numbers and snippets
+    const formattedResults = results.map(result => ({
+      id: result.id,
+      content: result.content,
+      pageNum: result.pageNum,
+      similarity: result.similarity,
+      pdfId: result.pdfId,
+      // Add snippet preview (first 200 chars)
+      snippet: result.content.length > 200 
+        ? result.content.substring(0, 200) + '...' 
+        : result.content
+    }));
 
     return NextResponse.json({
       success: true,
-      results: results,
+      results: formattedResults,
       query: query,
-      resultCount: results.length,
+      resultCount: formattedResults.length,
       pdfId: pdfId || null,
+      k: k
     });
   } catch (error) {
     console.error('Search error:', error);

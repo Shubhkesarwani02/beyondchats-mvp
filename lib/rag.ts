@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { askGemini } from './gemini';
+import { askGemini, askGeminiWithRAG } from './gemini';
 import { searchSimilarChunks, globalSemanticSearch } from './vector-search';
 
 export interface RAGResult {
@@ -11,6 +11,144 @@ export interface RAGResult {
   }>;
 }
 
+export interface EnhancedRAGResult {
+  answer: string;
+  sources: Array<{
+    id: string;
+    content: string;
+    pageNum: number;
+    pdfTitle: string;
+    snippet: string;
+    similarity?: number;
+  }>;
+  query: string;
+  pdfId?: string;
+  retrievedChunks: number;
+}
+
+/**
+ * Enhanced RAG function that uses the new citation-aware Gemini integration
+ */
+export async function performEnhancedRAG(
+  query: string, 
+  pdfId?: string, 
+  maxChunks: number = 5,
+  similarityThreshold: number = 0.3
+): Promise<EnhancedRAGResult> {
+  try {
+    let searchResults;
+    
+    // Perform vector search
+    if (pdfId) {
+      searchResults = await searchSimilarChunks(query, pdfId, maxChunks, similarityThreshold);
+    } else {
+      searchResults = await globalSemanticSearch(query, maxChunks, similarityThreshold);
+    }
+
+    // If no results from vector search, try keyword fallback
+    if (searchResults.length === 0) {
+      const keywordResults = await prisma.chunk.findMany({
+        where: {
+          AND: [
+            pdfId ? { pdfId } : {},
+            {
+              content: {
+                contains: query,
+                mode: 'insensitive'
+              }
+            }
+          ]
+        },
+        include: {
+          pdf: true
+        },
+        take: maxChunks,
+        orderBy: {
+          pageNum: 'asc'
+        }
+      });
+
+      searchResults = keywordResults.map(chunk => ({
+        id: chunk.id,
+        content: chunk.content,
+        pageNum: chunk.pageNum,
+        pdfId: chunk.pdfId,
+        similarity: 0.5, // Default similarity for keyword results
+      }));
+    }
+
+    if (searchResults.length === 0) {
+      return {
+        answer: "No relevant documents found. Please upload a PDF first or try a different search query.",
+        sources: [],
+        query,
+        pdfId,
+        retrievedChunks: 0
+      };
+    }
+
+    // Get PDF information for all chunks
+    const chunkIds = searchResults.map(r => r.id);
+    const chunksWithPdf = await prisma.chunk.findMany({
+      where: {
+        id: { in: chunkIds }
+      },
+      include: {
+        pdf: true
+      },
+      orderBy: {
+        pageNum: 'asc'
+      }
+    });
+
+    // Prepare data for RAG
+    const ragChunks = chunksWithPdf.map(chunk => ({
+      content: chunk.content,
+      pageNum: chunk.pageNum,
+      pdfTitle: chunk.pdf.title
+    }));
+
+    // Generate answer with citations
+    const answer = await askGeminiWithRAG(query, ragChunks);
+
+    // Format sources
+    const sources = chunksWithPdf.map(chunk => {
+      const searchResult = searchResults.find(r => r.id === chunk.id);
+      return {
+        id: chunk.id,
+        content: chunk.content,
+        pageNum: chunk.pageNum,
+        pdfTitle: chunk.pdf.title,
+        snippet: chunk.content.length > 200 
+          ? chunk.content.substring(0, 200) + '...' 
+          : chunk.content,
+        similarity: searchResult?.similarity
+      };
+    });
+
+    return {
+      answer,
+      sources,
+      query,
+      pdfId,
+      retrievedChunks: sources.length
+    };
+
+  } catch (error) {
+    console.error('Error performing enhanced RAG:', error);
+    return {
+      answer: "Sorry, there was an error processing your query. Please try again.",
+      sources: [],
+      query,
+      pdfId,
+      retrievedChunks: 0
+    };
+  }
+}
+
+/**
+ * Legacy RAG function for backward compatibility
+ */
 export async function performRAG(query: string, pdfId?: string): Promise<RAGResult> {
   try {
     let chunks;
