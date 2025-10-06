@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { askGemini } from './gemini';
+import { searchSimilarChunks, globalSemanticSearch } from './vector-search';
 
 export interface RAGResult {
   answer: string;
@@ -12,26 +13,82 @@ export interface RAGResult {
 
 export async function performRAG(query: string, pdfId?: string): Promise<RAGResult> {
   try {
-    // TODO: Implement vector similarity search
-    // For now, we'll just return a basic response
+    let chunks;
     
-    const chunks = await prisma.chunk.findMany({
-      where: pdfId ? { pdfId } : {},
-      include: {
-        pdf: true
-      },
-      take: 5 // Limit to top 5 chunks for now
-    });
+    // Try vector search first (if embeddings are available)
+    try {
+      if (pdfId) {
+        const vectorResults = await searchSimilarChunks(query, pdfId, 5, 0.3);
+        
+        // If we get good vector results, use them
+        if (vectorResults.length > 0) {
+          // Get full chunk data with PDF info
+          chunks = await prisma.chunk.findMany({
+            where: {
+              id: { in: vectorResults.map(r => r.id) }
+            },
+            include: {
+              pdf: true
+            },
+            orderBy: {
+              pageNum: 'asc'
+            }
+          });
+        }
+      } else {
+        const globalResults = await globalSemanticSearch(query, 5, 0.3);
+        
+        if (globalResults.length > 0) {
+          chunks = await prisma.chunk.findMany({
+            where: {
+              id: { in: globalResults.map(r => r.id) }
+            },
+            include: {
+              pdf: true
+            },
+            orderBy: {
+              pageNum: 'asc'
+            }
+          });
+        }
+      }
+    } catch (vectorError) {
+      console.log('Vector search failed, falling back to keyword search:', vectorError);
+    }
+    
+    // Fallback to basic keyword search if vector search failed or found no results
+    if (!chunks || chunks.length === 0) {
+      chunks = await prisma.chunk.findMany({
+        where: {
+          AND: [
+            pdfId ? { pdfId } : {},
+            {
+              content: {
+                contains: query,
+                mode: 'insensitive'
+              }
+            }
+          ]
+        },
+        include: {
+          pdf: true
+        },
+        take: 5,
+        orderBy: {
+          pageNum: 'asc'
+        }
+      });
+    }
 
     if (chunks.length === 0) {
       return {
-        answer: "No relevant documents found. Please upload a PDF first.",
+        answer: "No relevant documents found. Please upload a PDF first or try a different search query.",
         sources: []
       };
     }
 
     // Create context from chunks
-    const context = chunks.map((chunk: any) => 
+    const context = chunks.map((chunk) => 
       `From "${chunk.pdf.title}" (page ${chunk.pageNum}): ${chunk.content}`
     ).join('\n\n');
 
@@ -47,7 +104,7 @@ Please provide a comprehensive answer based only on the information provided in 
 
     return {
       answer,
-      sources: chunks.map((chunk: any) => ({
+      sources: chunks.map((chunk) => ({
         content: chunk.content,
         pageNum: chunk.pageNum,
         pdfTitle: chunk.pdf.title

@@ -1,5 +1,3 @@
-// Prisma schema for BeyondChats
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,30 +8,30 @@ datasource db {
 }
 
 model PDF {
-  id          String   @id @default(cuid())
-  title       String
-  url         String
-  createdAt   DateTime @default(now())
-  chunks      Chunk[]
-  quizzes     Quiz[]
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  createdAt DateTime @default(now())
+  chunks    Chunk[]
+  quizzes   Quiz[]
 }
 
 model Chunk {
-  id         String   @id @default(cuid())
-  content    String
-  pageNum    Int
-  embedding  Unsupported("vector(1536)")? // Optional until embeddings generated
-  pdfId      String
-  pdf        PDF      @relation(fields: [pdfId], references: [id])
+  id        String                        @id @default(cuid())
+  content   String
+  pageNum   Int
+  pdfId     String
+  embedding Unsupported("vector(768)")?
+  pdf       PDF                           @relation(fields: [pdfId], references: [id])
 }
 
 model Quiz {
   id          String   @id @default(cuid())
   pdfId       String
-  pdf         PDF      @relation(fields: [pdfId], references: [id])
   question    String
   options     String[]
   correct     String
   explanation String?
   createdAt   DateTime @default(now())
+  pdf         PDF      @relation(fields: [pdfId], references: [id])
 }

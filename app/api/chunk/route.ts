@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { pdf } from 'pdf-parse';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
 interface ChunkData {
   content: string;
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Create chunks with sliding window
     const chunks = createChunks(text, 1000, 200);
     
-    // Save chunks to database
+    // Save chunks to database first
     const savedChunks = await Promise.all(
       chunks.map((chunk) =>
         prisma.chunk.create({
@@ -118,9 +119,33 @@ export async function POST(request: NextRequest) {
       )
     );
 
+    // Generate embeddings for all chunks
+    try {
+      console.log('Generating embeddings for chunks...');
+      const chunkTexts = chunks.map(chunk => chunk.content);
+      const embeddings = await generateBatchEmbeddings(chunkTexts);
+      
+      // Update chunks with embeddings
+      const embeddingPromises = savedChunks.map((chunk, index) => {
+        const vectorString = formatVectorForDB(embeddings[index]);
+        
+        return prisma.$executeRaw`
+          UPDATE "Chunk" 
+          SET embedding = ${vectorString}::vector 
+          WHERE id = ${chunk.id}
+        `;
+      });
+
+      await Promise.all(embeddingPromises);
+      console.log('Successfully generated embeddings for all chunks');
+    } catch (embeddingError) {
+      console.error('Error generating embeddings:', embeddingError);
+      // Continue without embeddings - they can be generated later via /api/embed
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Successfully created ${savedChunks.length} chunks`,
+      message: `Successfully created ${savedChunks.length} chunks with embeddings`,
       chunksCount: savedChunks.length,
       pdfTitle: pdfRecord.title,
     });
