@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma schema for BeyondChats
 
 generator client {
   provider = "prisma-client-js"
@@ -20,18 +19,18 @@ model PDF {
 }
 
 model Chunk {
-  id        String   @id @default(cuid())
-  content   String
-  pageNum   Int
-  // We'll add vector embeddings later once pgvector is properly set up
-  pdf       PDF      @relation(fields: [pdfId], references: [id])
-  pdfId     String
+  id         String   @id @default(cuid())
+  content    String
+  pageNum    Int
+  embedding  Unsupported("vector(1536)")? // Optional until embeddings generated
+  pdfId      String
+  pdf        PDF      @relation(fields: [pdfId], references: [id])
 }
 
 model Quiz {
   id          String   @id @default(cuid())
-  pdf         PDF      @relation(fields: [pdfId], references: [id])
   pdfId       String
+  pdf         PDF      @relation(fields: [pdfId], references: [id])
   question    String
   options     String[]
   correct     String

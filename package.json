@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",
+    "@prisma/extension-accelerate": "^2.0.2",
     "langchain": "^0.3.35",
     "next": "15.5.4",
     "next-s3-upload": "^0.3.4",
