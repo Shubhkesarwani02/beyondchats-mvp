@@ -8,15 +8,20 @@ interface PdfViewerProps {
   onPageChange: (page: number) => void;
 }
 
+// Use dynamic import to properly type PDF.js
+type PDFJSLib = typeof import('pdfjs-dist');
+type PDFDocumentProxy = Awaited<ReturnType<PDFJSLib['getDocument']>['promise']>;
+type RenderTask = ReturnType<Awaited<ReturnType<PDFDocumentProxy['getPage']>>['render']>;
+
 export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState(1.0);
-  const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const renderTaskRef = useRef<any>(null);
-  const [pdfjsLib, setPdfjsLib] = useState<any>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const [pdfjsLib, setPdfjsLib] = useState<PDFJSLib | null>(null);
 
   // Load PDF.js dynamically on client side
   useEffect(() => {

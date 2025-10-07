@@ -2,16 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { askGemini } from '@/lib/gemini';
 
-interface GenerateQuizRequest {
-  title: string;
-  pdfIds: string[];
-  chunks?: string[];
-  num_mcq: number;
-  num_saq: number;
-  num_laq: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-}
-
 interface QuizQuestion {
   id: string;
   type: 'mcq' | 'saq' | 'laq';
