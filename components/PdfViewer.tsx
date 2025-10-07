@@ -1,10 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set up PDF.js worker - using local worker file
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
 
 interface PdfViewerProps {
   pdfUrl: string;
@@ -17,12 +13,31 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState(1.0);
-  const [pdfDocument, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const renderTaskRef = useRef<any>(null);
+  const [pdfjsLib, setPdfjsLib] = useState<any>(null);
+
+  // Load PDF.js dynamically on client side
+  useEffect(() => {
+    const loadPdfJs = async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
+        setPdfjsLib(pdfjs);
+      } catch (err) {
+        console.error('Failed to load PDF.js:', err);
+        setError('Failed to load PDF viewer');
+      }
+    };
+
+    loadPdfJs();
+  }, []);
 
   useEffect(() => {
     const loadDocument = async () => {
+      if (!pdfjsLib) return;
+      
       try {
         setLoading(true);
         setError(null);
@@ -41,7 +56,7 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
     };
 
     loadDocument();
-  }, [pdfUrl]);
+  }, [pdfUrl, pdfjsLib]);
 
   useEffect(() => {
     const renderPage = async (pageNumber: number) => {
