@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { askGemini } from '@/lib/gemini';
 
+interface QuizQuestion {
+  type: 'mcq' | 'saq' | 'laq';
+  stem: string;
+  options?: string[];
+  expectedAnswer?: string;
+  explanation?: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -46,7 +54,7 @@ Return only the JSON, nothing else.`;
     const geminiResponse = await askGemini(prompt);
     
     // Parse the JSON response
-    let quizData: { title: string; questions: any[] };
+    let quizData: { title: string; questions: QuizQuestion[] };
     try {
       // Clean the response - remove markdown code blocks and extra text
       let cleanResponse = geminiResponse.trim();

@@ -236,7 +236,7 @@ async function updateUserProgress(userId: string, attemptData: {
     let progressData: UserProgressData;
     if (existingProgress) {
       // Update existing progress
-      const currentProgress = (existingProgress.progressJson as UserProgressData) || {
+      const currentProgress = (existingProgress.progressJson as unknown as UserProgressData) || {
         quizzes: {},
         overallStats: { totalQuizzes: 0, totalAttempts: 0, averageScore: 0 }
       };
@@ -302,12 +302,12 @@ async function updateUserProgress(userId: string, attemptData: {
     await prisma.userProgress.upsert({
       where: { userId },
       update: {
-        progressJson: progressData,
+        progressJson: JSON.parse(JSON.stringify(progressData)),
         updatedAt: new Date()
       },
       create: {
         userId,
-        progressJson: progressData,
+        progressJson: JSON.parse(JSON.stringify(progressData)),
         updatedAt: new Date()
       }
     });
