@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useToast } from '@/components/ui/toast';
 
 interface Message {
   id: string;
@@ -30,6 +31,8 @@ export default function ChatPanel({ pdfId, onGoToPage }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { show } = useToast();
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -40,6 +43,24 @@ export default function ChatPanel({ pdfId, onGoToPage }: ChatPanelProps) {
 
   const generateMessageId = () => {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  };
+
+  const liveRegionRef = useRef<HTMLDivElement>(null);
+
+  const appendAssistantStreaming = async (fullText: string, sources: Message['sources']) => {
+    const id = generateMessageId();
+    const baseMessage: Message = { id, type: 'assistant', content: '', sources, timestamp: new Date() };
+    setMessages(prev => [...prev, baseMessage]);
+    const tokens = fullText.split(/(\s+)/);
+    let assembled = '';
+    for (let i = 0; i < tokens.length; i++) {
+      assembled += tokens[i];
+      await new Promise(r => setTimeout(r, Math.min(30, 10 + Math.random()*40)));
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, content: assembled } : m));
+      if (i % 6 === 0 && liveRegionRef.current) {
+        liveRegionRef.current.textContent = assembled.slice(-140); // update live region with trailing snippet
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,21 +95,16 @@ export default function ChatPanel({ pdfId, onGoToPage }: ChatPanelProps) {
       const data = await response.json();
 
       if (data.success) {
-        const assistantMessage: Message = {
-          id: generateMessageId(),
-          type: 'assistant',
-          content: data.answer,
-          sources: data.sources,
-          timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
+        await appendAssistantStreaming(data.answer || '', data.sources);
+        show({ type: 'success', message: 'Answer generated' });
       } else {
         setError(data.error || 'Failed to get response from AI');
+        show({ type: 'error', message: data.error || 'AI response failed' });
       }
     } catch (err) {
       console.error('Chat error:', err);
       setError('Network error. Please try again.');
+      show({ type: 'error', message: 'Network error' });
     } finally {
       setIsLoading(false);
     }
@@ -107,134 +123,110 @@ export default function ChatPanel({ pdfId, onGoToPage }: ChatPanelProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+  <div className="flex flex-col h-full bg-[var(--color-bg-alt)]/60 backdrop-blur-xl border-l border-[var(--color-border)]" role="region" aria-label="Chat with AI assistant">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
-        <p className="text-sm text-gray-600">Ask questions about your document</p>
+      <div className="px-5 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-[var(--color-text-muted)]">AI Assistant</h2>
+          <p className="text-xs text-[var(--color-text-muted)]/80">Ask questions about this PDF</p>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center py-8">
-            <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Start a conversation</h3>
-            <p className="text-gray-600">Ask questions about the content in your PDF document.</p>
+  <div className="flex-1 overflow-y-auto p-5 space-y-6 relative" aria-live="off">
+        {messages.length === 0 && !isLoading && (
+          <div className="max-w-sm mx-auto text-center mt-16 animate-fade-in-up">
+            <div className="h-14 w-14 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white shadow shadow-indigo-500/40">
+              💬
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
+            <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">Ask concept explanations, summaries, or clarifications. Cite pages when you can for better grounding.</p>
           </div>
         )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                message.type === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}
-            >
-              <div className="mb-1">
-                {message.content}
-              </div>
-              
-              {/* Citations for assistant messages */}
+        {messages.map(message => (
+          <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`} role="group" aria-label={message.type === 'user' ? 'Your message' : 'Assistant response'}>
+            <div className={`group relative max-w-[78%] px-5 py-3 rounded-2xl shadow-sm text-sm leading-relaxed tracking-normal whitespace-pre-wrap ${message.type === 'user' ? 'bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white rounded-br-sm' : 'glass border border-[var(--color-border)]/60 text-[var(--color-text)] rounded-bl-sm'} transition-all`}>
+              <div className={`prose-chat ${message.type === 'user' ? '' : 'text-[var(--color-text)]'} text-sm`}>{message.content}</div>
               {message.type === 'assistant' && message.sources && message.sources.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-xs font-medium text-gray-600 mb-2">Sources:</p>
-                  <div className="space-y-2">
-                    {message.sources.map((source) => (
-                      <div
-                        key={source.id}
-                        className="bg-white rounded p-2 border border-gray-200"
-                      >
-                        <div className="flex items-start justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-700">
-                            Page {source.pageNum}
-                          </span>
-                          <button
-                            onClick={() => handleCitationClick(source.pageNum)}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Go to page →
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          &ldquo;{source.snippet}&rdquo;
-                        </p>
-                      </div>
+                <details className="mt-3 group/source">
+                  <summary className="cursor-pointer text-xs font-semibold opacity-70 hover:opacity-100 select-none">References ({message.sources.length})</summary>
+                  <ul className="mt-2 space-y-2">
+                    {message.sources.map(source => (
+                      <li key={source.id}>
+                        <button onClick={() => handleCitationClick(source.pageNum)} className="w-full text-left text-xs px-3 py-2 rounded-lg bg-white/70 dark:bg-white/10 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 border border-[var(--color-border)]/60 transition-colors">
+                          <span className="font-medium">Page {source.pageNum}:</span> {source.snippet.slice(0, 110)}{source.snippet.length > 110 ? '…' : ''}
+                        </button>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
+                </details>
+              )}
+              <time className={`block mt-2 text-[10px] tracking-wide uppercase ${message.type === 'user' ? 'text-white/60' : 'text-[var(--color-text-muted)]/60'}`}>{formatTime(message.timestamp)}</time>
+              {message.type === 'assistant' && (
+                <div className="opacity-0 group-hover:opacity-100 transition absolute -top-2 -right-2">
+                  <button
+                    onClick={() => navigator.clipboard.writeText(message.content)}
+                    className="p-1 rounded-full bg-black/60 text-white text-[10px] hover:bg-black/80"
+                    aria-label="Copy answer"
+                  >
+                    Copy
+                  </button>
                 </div>
               )}
-              
-              <div className={`text-xs mt-2 ${
-                message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
-              }`}>
-                {formatTime(message.timestamp)}
-              </div>
             </div>
           </div>
         ))}
 
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 rounded-lg px-4 py-2 max-w-[80%]">
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span>AI is thinking...</span>
+          <div className="flex justify-start animate-fade-in-up" aria-live="polite" aria-label="Assistant is thinking">
+            <div className="glass px-5 py-3 rounded-2xl text-sm shadow-sm flex items-center gap-3">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-fuchsia-500 animate-pulse [animation-delay:120ms]" />
+                <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse [animation-delay:240ms]" />
               </div>
+              <span className="text-[var(--color-text-muted)] text-xs font-medium">AI is thinking…</span>
             </div>
           </div>
         )}
 
         <div ref={messagesEndRef} />
+        <div ref={liveRegionRef} className="sr-only" aria-live="polite" aria-atomic="false" />
       </div>
 
-      {/* Error Display */}
       {error && (
-        <div className="p-4 bg-red-50 border-t border-red-200">
-          <div className="flex items-center">
-            <svg className="w-4 h-4 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <span className="text-red-800 text-sm">{error}</span>
-            <button
-              onClick={() => setError(null)}
-              className="ml-auto text-red-600 hover:text-red-800"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-400/40 text-red-600 dark:text-red-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} aria-label="Dismiss error" className="hover:opacity-80">✕</button>
           </div>
         </div>
       )}
 
       {/* Input Form */}
-      <div className="border-t border-gray-200 p-4">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask a question about the document..."
-            disabled={isLoading}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-          />
+      <div className="border-t border-[var(--color-border)] p-4">
+        <form onSubmit={handleSubmit} className="relative flex gap-2 items-end">
+          <div className="flex-1 relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Ask a question (e.g., Summarize section 2)..."
+              disabled={isLoading}
+              className="w-full px-4 py-3 rounded-xl bg-[var(--color-bg)]/70 border border-[var(--color-border)] focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:opacity-50 pr-12 text-sm"
+            />
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] bg-[var(--color-bg-alt)]/80 border border-[var(--color-border)] px-1.5 py-0.5 rounded font-mono text-[var(--color-text-muted)]">Enter</kbd>
+          </div>
           <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="h-11 aspect-square rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md transition-all focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400"
+            aria-label="Send question"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
           </button>
         </form>
       </div>

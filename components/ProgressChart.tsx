@@ -63,7 +63,7 @@ export default function ProgressChart({ data, type = 'bar' }: ProgressChartProps
           formatter={(value) => [`${value}%`, 'Score']}
           labelFormatter={(label) => `Quiz: ${label}`}
         />
-        <Bar dataKey="percentage" fill="#8884d8" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="percentage" fill="var(--chart-bar)" radius={[6, 6, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -81,13 +81,13 @@ export default function ProgressChart({ data, type = 'bar' }: ProgressChartProps
           formatter={(value) => [`${value}%`, 'Score']}
           labelFormatter={(label) => `Date: ${label}`}
         />
-        <Line 
-          type="monotone" 
-          dataKey="percentage" 
-          stroke="#8884d8" 
+        <Line
+          type="monotone"
+          dataKey="percentage"
+          stroke="var(--chart-line)"
           strokeWidth={3}
-          dot={{ r: 6 }}
-          activeDot={{ r: 8 }}
+          dot={{ r: 5, stroke: 'var(--chart-line)', strokeWidth: 2 }}
+          activeDot={{ r: 7 }}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -96,10 +96,10 @@ export default function ProgressChart({ data, type = 'bar' }: ProgressChartProps
   const renderPieChart = () => {
     // Group data by score ranges for pie chart
     const scoreRanges = [
-      { name: 'Excellent (90-100%)', min: 90, max: 100, color: '#00C49F' },
-      { name: 'Good (70-89%)', min: 70, max: 89, color: '#0088FE' },
-      { name: 'Fair (50-69%)', min: 50, max: 69, color: '#FFBB28' },
-      { name: 'Poor (0-49%)', min: 0, max: 49, color: '#FF8042' },
+      { name: 'Excellent (90-100%)', min: 90, max: 100, color: 'var(--chart-excellent)' },
+      { name: 'Good (70-89%)', min: 70, max: 89, color: 'var(--chart-good)' },
+      { name: 'Fair (50-69%)', min: 50, max: 69, color: 'var(--chart-fair)' },
+      { name: 'Poor (0-49%)', min: 0, max: 49, color: 'var(--chart-poor)' },
     ];
 
     const pieData = scoreRanges.map(range => ({
@@ -134,14 +134,14 @@ export default function ProgressChart({ data, type = 'bar' }: ProgressChartProps
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-alt)] p-6 shadow-sm">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">
+        <h3 className="text-sm font-semibold tracking-wide uppercase text-[var(--color-text-muted)] mb-1">
           {type === 'bar' && 'Quiz Performance Overview'}
           {type === 'line' && 'Performance Trend Over Time'}
           {type === 'pie' && 'Score Distribution'}
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-xs text-[var(--color-text-muted)]">
           {type === 'bar' && 'Your scores across different quizzes'}
           {type === 'line' && 'How your performance has changed over time'}
           {type === 'pie' && 'Distribution of your quiz scores by performance level'}

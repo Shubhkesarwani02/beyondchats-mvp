@@ -1,6 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { ProgressBar } from '@/components/ui/progress';
+
+interface SourcePdf {
+  id: string;
+  title: string;
+  url: string;
+  createdAt: string;
+  hasChunks: boolean;
+  chunksCount: number;
+}
 
 interface UploadResult {
   success?: boolean;
@@ -24,6 +37,18 @@ export default function UploadPage() {
   const [chunking, setChunking] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [chunkResult, setChunkResult] = useState<ChunkResult | null>(null);
+  const [pdfs, setPdfs] = useState<SourcePdf[]>([]);
+  const [loadingPdfs, setLoadingPdfs] = useState(true);
+  const [refreshFlag, setRefreshFlag] = useState(0);
+
+  useEffect(() => {
+    setLoadingPdfs(true);
+    fetch('/api/pdfs')
+      .then(r => r.json())
+      .then(data => { if (data.success) setPdfs(data.pdfs); })
+      .catch(err => console.error('Failed to load PDFs', err))
+      .finally(() => setLoadingPdfs(false));
+  }, [refreshFlag]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -50,8 +75,8 @@ export default function UploadPage() {
       setUploadResult(result);
       
       if (result.success) {
-        // Auto-trigger chunking after successful upload
         handleChunk(result.pdfId);
+        setRefreshFlag(f => f + 1); // refresh list
       }
     } catch (error) {
       console.error('Upload failed:', error);
@@ -84,89 +109,110 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="container mx-auto p-8 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-6">Upload PDF</h1>
-      
-      <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-8 mb-6">
-        <div className="text-center">
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileChange}
-            className="mb-4"
-          />
-          
-          {file && (
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">Selected: {file.name}</p>
-              <p className="text-xs text-gray-500">Size: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+    <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="mb-10 flex flex-col lg:flex-row gap-8">
+        <Card className="flex-1" interactive>
+          <CardHeader>
+            <CardTitle>Upload PDF</CardTitle>
+            <CardDescription>Supported: single PDF per upload (up to ~25MB)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-8 text-center relative">
+              <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" id="fileInput" />
+              <label htmlFor="fileInput" className="cursor-pointer inline-flex flex-col items-center gap-3">
+                <span className="h-14 w-14 rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow">📄</span>
+                <span className="text-sm font-medium">{file ? 'Change File' : 'Choose PDF File'}</span>
+                <span className="text-xs text-[var(--color-text-muted)]">Click to select</span>
+              </label>
+              {file && (
+                <div className="mt-6 text-left bg-[var(--color-bg)]/60 rounded-lg p-4 text-sm border border-[var(--color-border)]">
+                  <p className="font-medium truncate">{file.name}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">Size: {(file.size/1024/1024).toFixed(2)} MB</p>
+                </div>
+              )}
+              <div className="mt-6 flex justify-center">
+                <Button onClick={handleUpload} disabled={!file || uploading} variant="primary" className="min-w-40">
+                  {uploading ? 'Uploading…' : 'Upload PDF'}
+                </Button>
+              </div>
+              {uploadResult && (
+                <div className="mt-6 text-left text-xs">
+                  {uploadResult.success ? (
+                    <p className="text-green-600">{uploadResult.message}</p>
+                  ) : (
+                    <p className="text-red-600">{uploadResult.error}</p>
+                  )}
+                </div>
+              )}
+              {chunking && (
+                <div className="mt-4">
+                  <ProgressBar value={45} />
+                  <p className="text-xs text-[var(--color-text-muted)] mt-2">Processing chunks…</p>
+                </div>
+              )}
+              {chunkResult && (
+                <div className="mt-4 text-left text-xs">
+                  {chunkResult.success ? (
+                    <p className="text-green-600">Chunks: {chunkResult.chunksCount}</p>
+                  ) : (
+                    <p className="text-red-600">{chunkResult.error}</p>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-          
-          <button
-            onClick={handleUpload}
-            disabled={!file || uploading}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-          >
-            {uploading ? 'Uploading...' : 'Upload PDF'}
-          </button>
-        </div>
+          </CardContent>
+        </Card>
+        <Card className="w-full lg:w-80" interactive>
+          <CardHeader>
+            <CardTitle>How it works</CardTitle>
+            <CardDescription>Behind the scenes processing</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ol className="list-decimal list-inside space-y-1 text-xs text-[var(--color-text-muted)]">
+              <li>Upload a PDF to the server.</li>
+              <li>System parses and splits text.</li>
+              <li>Creates overlapping chunks (1000 chars + 200 overlap).</li>
+              <li>Stores chunks for retrieval / quizzes.</li>
+              <li>Embeddings added (future vector step).</li>
+            </ol>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Upload Result */}
-      {uploadResult && (
-        <div className="mb-6 p-4 rounded border">
-          <h3 className="font-bold mb-2">Upload Result:</h3>
-          {uploadResult.success ? (
-            <div className="text-green-600">
-              <p>✅ {uploadResult.message}</p>
-              <p>PDF ID: {uploadResult.pdfId}</p>
-              <p>Filename: {uploadResult.filename}</p>
-            </div>
-          ) : (
-            <div className="text-red-600">
-              <p>❌ {uploadResult.error}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Chunking Status */}
-      {chunking && (
-        <div className="mb-6 p-4 rounded border bg-blue-50">
-          <p>🔄 Processing PDF chunks...</p>
-        </div>
-      )}
-
-      {/* Chunk Result */}
-      {chunkResult && (
-        <div className="mb-6 p-4 rounded border">
-          <h3 className="font-bold mb-2">Chunking Result:</h3>
-          {chunkResult.success ? (
-            <div className="text-green-600">
-              <p>✅ {chunkResult.message}</p>
-              <p>Chunks created: {chunkResult.chunksCount}</p>
-              <p>PDF: {chunkResult.pdfTitle}</p>
-            </div>
-          ) : (
-            <div className="text-red-600">
-              <p>❌ {chunkResult.error}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Instructions */}
-      <div className="bg-gray-50 p-4 rounded border">
-        <h3 className="font-bold mb-2">How it works:</h3>
-        <ol className="list-decimal list-inside text-sm text-gray-700 space-y-1">
-          <li>Select a PDF file to upload</li>
-          <li>Click &quot;Upload PDF&quot; to save it to the server</li>
-          <li>The system will automatically parse and chunk the PDF</li>
-          <li>Text is split into 1000-character chunks with 200-character overlap</li>
-          <li>Chunks are saved to the database (embeddings will be added later)</li>
-        </ol>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold tracking-tight">Your PDFs</h2>
+        <Button variant="subtle" size="sm" onClick={() => setRefreshFlag(f => f + 1)}>Refresh</Button>
       </div>
+
+      {loadingPdfs ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-40 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)] animate-pulse" />
+          ))}
+        </div>
+      ) : pdfs.length === 0 ? (
+        <div className="text-sm text-[var(--color-text-muted)] italic">No PDFs uploaded yet.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+          {pdfs.map(pdf => (
+            <Card key={pdf.id} interactive className="group overflow-hidden">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1">{pdf.title}</h3>
+                  <Badge variant={pdf.hasChunks ? 'success' : 'warning'}>{pdf.hasChunks ? 'Ready' : 'Pending'}</Badge>
+                </div>
+                <div className="h-1.5 bg-[var(--color-border)]/60 rounded-full overflow-hidden mb-3">
+                  <div className={`h-full transition-all ${pdf.hasChunks ? 'bg-gradient-to-r from-indigo-600 to-fuchsia-500 w-full' : 'bg-gradient-to-r from-amber-400 to-amber-500 w-1/3 animate-pulse'}`} />
+                </div>
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                  <span>{new Date(pdf.createdAt).toLocaleDateString()}</span>
+                  <span>{pdf.chunksCount} chunks</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

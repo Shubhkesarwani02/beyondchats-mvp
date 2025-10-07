@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import { ToastProvider } from "@/components/ui/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,8 +29,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navigation />
-        {children}
+        <a href="#main" className="skip-link">Skip to main content</a>
+        <ToastProvider>
+          <Navigation />
+          <main id="main" className="outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
+            {children}
+          </main>
+        </ToastProvider>
       </body>
     </html>
   );

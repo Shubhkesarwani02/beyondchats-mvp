@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface PDF {
   id: string;
@@ -99,193 +102,112 @@ export default function QuizGeneratorPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading PDFs...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-10 w-10 rounded-full border-2 border-indigo-500 border-b-transparent" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Generate New Quiz</h1>
-
-          {/* Quiz Title */}
-          <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Quiz Title
-            </label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Enter quiz title..."
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+    <div className="min-h-screen bg-[var(--color-bg)] py-10">
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight gradient-text mb-2">Generate New Quiz</h1>
+            <p className="text-sm text-[var(--color-text-muted)]">Combine multiple PDFs to create a tailored assessment.</p>
           </div>
-
-          {/* PDF Selection */}
-          <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-700 mb-4">
-              Select Source PDFs ({form.selectedPdfIds.length} selected)
-            </label>
-            {pdfs.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No PDFs available. Please upload some PDFs first.</p>
-                <button
-                  onClick={() => router.push('/upload')}
-                  className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
-                >
-                  Upload PDFs
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4">
-                {pdfs.map((pdf) => (
-                  <label
-                    key={pdf.id}
-                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition duration-200 ${
-                      form.selectedPdfIds.includes(pdf.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.selectedPdfIds.includes(pdf.id)}
-                      onChange={() => handlePdfToggle(pdf.id)}
-                      className="mr-3 h-4 w-4 text-blue-600"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{pdf.title}</p>
-                      <p className="text-sm text-gray-500">
-                        Uploaded: {new Date(pdf.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Quiz Configuration */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Quiz Configuration</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Multiple Choice Questions
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={form.num_mcq}
-                  onChange={(e) => setForm(prev => ({ ...prev, num_mcq: parseInt(e.target.value) || 0 }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Short Answer Questions
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  value={form.num_saq}
-                  onChange={(e) => setForm(prev => ({ ...prev, num_saq: parseInt(e.target.value) || 0 }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Long Answer Questions
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  value={form.num_laq}
-                  onChange={(e) => setForm(prev => ({ ...prev, num_laq: parseInt(e.target.value) || 0 }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Difficulty Level
-                </label>
-                <select
-                  value={form.difficulty}
-                  onChange={(e) => setForm(prev => ({ ...prev, difficulty: e.target.value as 'easy' | 'medium' | 'hard' }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Quiz Summary */}
-          <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-2">Quiz Summary</h4>
-            <p className="text-sm text-gray-600">
-              Total Questions: {form.num_mcq + form.num_saq + form.num_laq} 
-              {' '}| Estimated Time: {Math.ceil((form.num_mcq * 1 + form.num_saq * 2 + form.num_laq * 5) / 2)} minutes
-            </p>
-            <p className="text-sm text-gray-600">
-              Total Points: {form.num_mcq * 4 + form.num_saq * 4 + form.num_laq * 10}
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200"
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={generateQuiz}
-              disabled={generating || form.selectedPdfIds.length === 0 || !form.title.trim()}
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-            >
-              {generating ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Generating Quiz...
-                </div>
-              ) : (
-                'Generate Quiz'
-              )}
-            </button>
-          </div>
-
-          {generating && (
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-800 text-sm">
-                🤖 AI is analyzing content from your selected documents and generating personalized questions. This may take 30-60 seconds...
-              </p>
-              <p className="text-blue-600 text-xs mt-2">
-                Questions will be based on the actual content of: {form.selectedPdfIds.length} selected document(s)
-              </p>
-            </div>
-          )}
+          <Button onClick={generateQuiz} disabled={generating || form.selectedPdfIds.length === 0 || !form.title.trim()} className="hidden md:inline-flex">
+            {generating ? 'Generating…' : 'Generate Quiz'}
+          </Button>
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quiz Basics</CardTitle>
+                <CardDescription>Name and choose document sources</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <label className="block text-xs font-semibold tracking-wide mb-2 uppercase text-[var(--color-text-muted)]">Quiz Title</label>
+                  <input type="text" value={form.title} onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. Chapter 2 Concept Check" className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold tracking-wide mb-3 uppercase text-[var(--color-text-muted)]">Select Source PDFs ({form.selectedPdfIds.length} selected)</label>
+                  {pdfs.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-[var(--color-text-muted)]">
+                      <p>No PDFs available. Upload from the Upload page.</p>
+                      <Button onClick={() => router.push('/upload')} variant="subtle" className="mt-4">Upload PDFs</Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-72 overflow-y-auto pr-1">
+                      {pdfs.map(pdf => {
+                        const active = form.selectedPdfIds.includes(pdf.id);
+                        return (
+                          <button key={pdf.id} type="button" onClick={() => handlePdfToggle(pdf.id)} className={`group relative rounded-xl border p-4 text-left transition-all ${active ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)]'}`}>
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <p className="font-medium text-sm leading-snug line-clamp-2 flex-1">{pdf.title}</p>
+                              {active && <Badge variant="success">Selected</Badge>}
+                            </div>
+                            <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">{new Date(pdf.createdAt).toLocaleDateString()}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuration</CardTitle>
+                <CardDescription>Adjust question counts & difficulty</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <ConfigNumber label="MCQs" value={form.num_mcq} onChange={(v) => setForm(p => ({ ...p, num_mcq: v }))} max={20} />
+                  <ConfigNumber label="SAQs" value={form.num_saq} onChange={(v) => setForm(p => ({ ...p, num_saq: v }))} max={10} />
+                  <ConfigNumber label="LAQs" value={form.num_laq} onChange={(v) => setForm(p => ({ ...p, num_laq: v }))} max={5} />
+                  <div>
+                    <label className="block text-xs font-semibold tracking-wide mb-2 uppercase text-[var(--color-text-muted)]">Difficulty</label>
+                    <select value={form.difficulty} onChange={(e) => setForm(prev => ({ ...prev, difficulty: e.target.value as 'easy' | 'medium' | 'hard' }))} className="w-full px-3 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between text-sm"><span>Total Questions</span><span className="font-semibold">{form.num_mcq + form.num_saq + form.num_laq}</span></div>
+                <div className="flex items-center justify-between text-sm"><span>Estimated Time</span><span className="font-semibold">{Math.ceil((form.num_mcq * 1 + form.num_saq * 2 + form.num_laq * 5) / 2)} mins</span></div>
+                <div className="flex items-center justify-between text-sm"><span>Total Points</span><span className="font-semibold">{form.num_mcq * 4 + form.num_saq * 4 + form.num_laq * 10}</span></div>
+                <div className="pt-2">
+                  <Button onClick={generateQuiz} disabled={generating || form.selectedPdfIds.length === 0 || !form.title.trim()} className="w-full">
+                    {generating ? 'Generating…' : 'Generate Quiz'}
+                  </Button>
+                </div>
+                {generating && (
+                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">AI analyzing selected documents…</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
       </div>
+    </div>
+  );
+}
+
+function ConfigNumber({ label, value, onChange, max }: { label: string; value: number; onChange: (v: number) => void; max: number }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold tracking-wide mb-2 uppercase text-[var(--color-text-muted)]">{label}</label>
+      <input type="number" min={0} max={max} value={value} onChange={(e) => onChange(parseInt(e.target.value) || 0)} className="w-full px-3 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
     </div>
   );
 }
