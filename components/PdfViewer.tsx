@@ -19,6 +19,7 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
   const [scale, setScale] = useState(1.0);
   const [pdfDocument, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -47,6 +48,12 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
       if (!pdfDocument || !canvasRef.current) return;
 
       try {
+        // Cancel any ongoing render task
+        if (renderTaskRef.current) {
+          renderTaskRef.current.cancel();
+          renderTaskRef.current = null;
+        }
+
         const page = await pdfDocument.getPage(pageNumber);
         const viewport = page.getViewport({ scale });
         
@@ -63,15 +70,30 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
           canvas: canvas,
         };
 
-        await page.render(renderContext).promise;
+        // Start new render task and store reference
+        renderTaskRef.current = page.render(renderContext);
+        await renderTaskRef.current.promise;
+        renderTaskRef.current = null;
       } catch (err) {
-        console.error('Page render error:', err);
+        if (err && typeof err === 'object' && 'name' in err && err.name === 'RenderingCancelledException') {
+          console.log('Rendering cancelled');
+        } else {
+          console.error('Page render error:', err);
+        }
       }
     };
 
     if (pdfDocument && canvasRef.current) {
       renderPage(currentPage);
     }
+
+    // Cleanup function to cancel any ongoing render when component unmounts or dependencies change
+    return () => {
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+    };
   }, [pdfDocument, currentPage, scale]);
 
   const goToPrevPage = () => {
