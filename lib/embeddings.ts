@@ -28,8 +28,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
           content: {
             parts: [{ text: text }]
           },
-          taskType: 'RETRIEVAL_DOCUMENT',
-          title: 'Document chunk'
+          taskType: 'RETRIEVAL_DOCUMENT'
         }),
       }
     );

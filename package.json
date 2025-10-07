@@ -7,10 +7,14 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "test:quick": "node scripts/quick-test.js",
     "test:rag": "node scripts/rag-test-suite.js",
     "test:rag-comprehensive": "node scripts/comprehensive-rag-test.js",
     "test:rag-simple": "node scripts/test-rag.js",
-    "test:open": "start http://localhost:3000/rag-test.html"
+    "test:full": "node scripts/full-system-test.js",
+    "test:all": "npm run test:full && npm run test:rag-comprehensive",
+    "test:open": "start http://localhost:3000/rag-test.html",
+    "test:dashboard": "start http://localhost:3000/test-dashboard.html"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

@@ -22,6 +22,7 @@ model Chunk {
   pageNum   Int
   pdfId     String
   pdf       PDF    @relation(fields: [pdfId], references: [id])
+  embedding Unsupported("vector(768)")?
 }
 
 // Enhanced quiz models
