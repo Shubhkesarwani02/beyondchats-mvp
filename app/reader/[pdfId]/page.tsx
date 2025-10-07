@@ -131,7 +131,7 @@ export default function ReaderPage() {
         {/* PDF Viewer */}
         <div className={`flex-1 ${sidebarOpen ? 'lg:w-2/3' : 'w-full'} transition-all duration-300`}>
           <PdfViewer
-            pdfUrl={pdf.url}
+            pdfUrl={`/api/pdf/${pdfId}?download=true`}
             currentPage={currentPage}
             onPageChange={handleGoToPage}
           />

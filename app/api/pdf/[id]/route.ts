@@ -9,6 +9,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const url = new URL(request.url);
+    const download = url.searchParams.get('download') === 'true';
+
+    console.log(`PDF API called with ID: ${id}, download: ${download}`);
 
     const pdf = await prisma.pDF.findUnique({
       where: { id },
@@ -21,33 +25,48 @@ export async function GET(
     });
 
     if (!pdf) {
+      console.log(`PDF not found for ID: ${id}`);
       return NextResponse.json(
         { error: 'PDF not found' },
         { status: 404 }
       );
     }
 
-    // Always try to serve the PDF file content first
-    try {
-      // Extract filename from URL (assuming URL format like /uploads/filename.pdf)
-      const filename = pdf.url.split('/').pop();
-      if (filename) {
-        const filePath = path.join(process.cwd(), 'public', 'uploads', filename);
-        const fileBuffer = await readFile(filePath);
+    console.log(`PDF found: ${pdf.title}, URL: ${pdf.url}`);
+
+    // If download parameter is true, serve the PDF file
+    if (download) {
+      try {
+        // Extract filename from URL (assuming URL format like /uploads/filename.pdf)
+        const filename = pdf.url.split('/').pop();
+        console.log(`Attempting to serve file: ${filename}`);
         
-        return new NextResponse(new Uint8Array(fileBuffer), {
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `inline; filename="${pdf.title}.pdf"`,
-          },
-        });
+        if (filename) {
+          const filePath = path.join(process.cwd(), 'public', 'uploads', filename);
+          console.log(`File path: ${filePath}`);
+          
+          const fileBuffer = await readFile(filePath);
+          console.log(`File read successfully, size: ${fileBuffer.length} bytes`);
+          
+          return new NextResponse(new Uint8Array(fileBuffer), {
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `inline; filename="${pdf.title}.pdf"`,
+              'Cache-Control': 'public, max-age=31536000',
+            },
+          });
+        }
+      } catch (fileError) {
+        console.error('Error reading PDF file:', fileError);
+        return NextResponse.json(
+          { error: 'Failed to read PDF file', details: fileError instanceof Error ? fileError.message : 'Unknown error' },
+          { status: 500 }
+        );
       }
-    } catch (fileError) {
-      console.error('Error reading PDF file:', fileError);
-      // Fall back to returning metadata if file can't be read
     }
 
     // Default: return PDF metadata as JSON
+    console.log(`Returning PDF metadata for: ${pdf.title}`);
     return NextResponse.json({
       success: true,
       pdf
