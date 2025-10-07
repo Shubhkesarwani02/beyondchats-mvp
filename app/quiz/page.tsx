@@ -277,7 +277,10 @@ export default function QuizGeneratorPage() {
           {generating && (
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-sm">
-                🤖 AI is analyzing your PDFs and generating questions. This may take 30-60 seconds...
+                🤖 AI is analyzing content from your selected documents and generating personalized questions. This may take 30-60 seconds...
+              </p>
+              <p className="text-blue-600 text-xs mt-2">
+                Questions will be based on the actual content of: {form.selectedPdfIds.length} selected document(s)
               </p>
             </div>
           )}

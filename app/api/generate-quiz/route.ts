@@ -1,5 +1,165 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { askGemini } from '@/lib/gemini';
+
+interface QuizQuestion {
+  type: string;
+  stem: string;
+  options?: string[];
+  correctIndex?: number;
+  expectedAnswer?: string;
+  explanation: string;
+  pageReference?: number;
+  difficulty?: string;
+}
+
+interface DatabaseQuestion {
+  qtype: string;
+  stem: string;
+  explanation: string;
+  source: Array<{ pdfId: string; page: number; snippet: string }>;
+  maxScore: number;
+  mcqOptions?: string[];
+  correctOptionIndex?: number;
+  expectedAnswer?: string;
+}
+
+async function generateQuizFromDocuments(pdfIds: string[], numMCQ: number, numSAQ: number, numLAQ: number) {
+  try {
+    // Get relevant chunks from the selected PDFs
+    const chunks = await prisma.chunk.findMany({
+      where: {
+        pdfId: {
+          in: pdfIds
+        }
+      },
+      include: {
+        pdf: {
+          select: {
+            title: true
+          }
+        }
+      },
+      take: 20, // Limit to avoid token overflow
+      orderBy: {
+        pageNum: 'asc'
+      }
+    });
+
+    console.log(`Found ${chunks.length} chunks from selected documents`);
+    
+    if (chunks.length === 0) {
+      throw new Error('No content found in the selected documents. Please ensure the documents have been processed and contain text.');
+    }
+
+    // Prepare context from chunks
+    const contextText = chunks.map((chunk) => 
+      `[Document: ${chunk.pdf.title} - Page ${chunk.pageNum}]\n${chunk.content}`
+    ).join('\n\n---\n\n');
+
+    console.log(`Context length: ${contextText.length} characters`);
+
+    // Create quiz generation prompt
+    const totalQuestions = numMCQ + numSAQ + numLAQ;
+    const quizPrompt = `You are an expert educator creating a comprehensive quiz based on the provided document content. 
+
+CONTENT TO ANALYZE:
+${contextText}
+
+QUIZ REQUIREMENTS:
+- Create exactly ${totalQuestions} questions total:
+  * ${numMCQ} Multiple Choice Questions (MCQ)
+  * ${numSAQ} Short Answer Questions (SAQ) 
+  * ${numLAQ} Long Answer Questions (LAQ)
+
+RESPONSE FORMAT:
+Return a valid JSON object with this exact structure:
+{
+  "questions": [
+    {
+      "type": "mcq",
+      "stem": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "explanation": "Why this answer is correct...",
+      "pageReference": 1,
+      "difficulty": "medium"
+    },
+    {
+      "type": "saq",
+      "stem": "Short answer question?",
+      "expectedAnswer": "Brief expected answer",
+      "explanation": "Explanation of the answer...",
+      "pageReference": 2,
+      "difficulty": "medium"
+    },
+    {
+      "type": "laq", 
+      "stem": "Long answer question requiring detailed response?",
+      "expectedAnswer": "Detailed expected answer with multiple points",
+      "explanation": "Rubric for evaluating the answer...",
+      "pageReference": 3,
+      "difficulty": "hard"
+    }
+  ]
+}
+
+QUALITY GUIDELINES:
+- Questions should test understanding, not just memorization
+- Use varied difficulty levels (easy, medium, hard)
+- Reference specific pages when possible
+- MCQ options should be plausible but clearly have one best answer
+- Short answers should be 1-3 sentences
+- Long answers should require 1-2 paragraphs
+- Explanations should help students learn
+
+Generate the quiz now:`;
+
+    console.log('Generating quiz with AI...');
+    const aiResponse = await askGemini(quizPrompt);
+    
+    // Parse the AI response
+    let quizData;
+    try {
+      // Extract JSON from the response (in case there's extra text)
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        quizData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No valid JSON found in AI response');
+      }
+    } catch {
+      console.error('Failed to parse AI response:', aiResponse);
+      throw new Error('AI generated invalid quiz format');
+    }
+
+    if (!quizData.questions || !Array.isArray(quizData.questions)) {
+      throw new Error('AI response missing questions array');
+    }
+
+    // Transform AI questions to database format
+    const questionsData: DatabaseQuestion[] = quizData.questions.map((q: QuizQuestion) => ({
+      qtype: q.type,
+      stem: q.stem,
+      explanation: q.explanation || '',
+      source: [{
+        pdfId: pdfIds[0], // Primary source
+        page: q.pageReference || 1,
+        snippet: q.stem.substring(0, 100) + '...'
+      }],
+      maxScore: q.type === 'mcq' ? 4 : q.type === 'saq' ? 6 : 10,
+      mcqOptions: q.type === 'mcq' ? q.options : undefined,
+      correctOptionIndex: q.type === 'mcq' ? q.correctIndex : undefined,
+      expectedAnswer: q.type !== 'mcq' ? q.expectedAnswer : undefined
+    }));
+
+    return questionsData;
+
+  } catch (error) {
+    console.error('Error generating quiz from documents:', error);
+    throw error;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,39 +179,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For testing: create hardcoded quiz data
-    const questionsData = [
-      {
-        qtype: "mcq",
-        stem: "What is machine learning?",
-        mcqOptions: ["A branch of AI that enables computers to learn", "A type of computer hardware", "A programming language", "A database system"],
-        correctOptionIndex: 0,
-        explanation: "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience.",
-        source: [{"pdfId": pdfIds[0], "page": 1, "snippet": "machine learning concepts"}],
-        maxScore: 4
-      },
-      {
-        qtype: "saq", 
-        stem: "What are the main types of machine learning algorithms?",
-        explanation: "The three main types are supervised, unsupervised, and reinforcement learning.",
-        source: [{"pdfId": pdfIds[0], "page": 2, "snippet": "types of ML algorithms"}],
-        maxScore: 4
-      }
-    ].slice(0, num_mcq + num_saq + num_laq);
+    console.log(`Generating quiz for PDFs: ${pdfIds.join(', ')}`);
+
+    // Generate quiz questions from actual document content
+    let questionsData;
+    try {
+      questionsData = await generateQuizFromDocuments(pdfIds, num_mcq, num_saq, num_laq);
+    } catch (error) {
+      console.error('Failed to generate quiz from documents:', error);
+      return NextResponse.json(
+        { error: 'Failed to generate quiz from document content. Please ensure the documents are properly processed.' },
+        { status: 500 }
+      );
+    }
 
     // Save quiz to database
     const savedQuiz = await prisma.quiz.create({
       data: {
         title: title,
         questions: {
-          create: questionsData.map((q) => ({
+          create: questionsData.map((q: DatabaseQuestion) => ({
             qtype: q.qtype,
             stem: q.stem,
             explanation: q.explanation,
             source: q.source,
             maxScore: q.maxScore,
             mcqOptions: q.qtype === 'mcq' ? {
-              create: q.mcqOptions?.map((option, optIndex) => ({
+              create: q.mcqOptions?.map((option: string, optIndex: number) => ({
                 text: option,
                 optionIndex: optIndex,
                 isCorrect: optIndex === q.correctOptionIndex

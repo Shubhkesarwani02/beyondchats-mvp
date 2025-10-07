@@ -8,13 +8,17 @@ interface PDF {
   title: string;
   url: string;
   createdAt: string;
+  hasChunks?: boolean;
+  chunksCount?: number;
 }
 
 export default function SourceSelector() {
   const [pdfs, setPdfs] = useState<PDF[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const router = useRouter();
 
   useEffect(() => {
@@ -51,7 +55,9 @@ export default function SourceSelector() {
 
     try {
       setUploading(true);
+      setProcessing(false);
       setError(null);
+      setUploadProgress('Uploading file...');
       
       const formData = new FormData();
       formData.append('file', file);
@@ -64,10 +70,23 @@ export default function SourceSelector() {
       const data = await response.json();
 
       if (data.success) {
-        // Refresh the PDF list
-        await fetchPdfs();
-        // Navigate to the uploaded PDF
-        router.push(`/reader/${data.pdfId}`);
+        setUploading(false);
+        setProcessing(true);
+        
+        // Show processing status
+        if (data.processing?.success) {
+          setUploadProgress(`✅ ${data.processing.message || 'Document processed successfully!'}`);
+        } else if (data.processing?.warning) {
+          setUploadProgress(`⚠️ ${data.processing.message || 'Document uploaded but processing incomplete'}`);
+        } else {
+          setUploadProgress('❌ Document uploaded but processing failed');
+        }
+
+        // Wait a moment to show the status, then refresh and navigate
+        setTimeout(async () => {
+          await fetchPdfs();
+          router.push(`/reader/${data.pdfId}`);
+        }, 2000);
       } else {
         setError(data.error || 'Upload failed');
       }
@@ -75,7 +94,38 @@ export default function SourceSelector() {
       setError('Error uploading file');
       console.error('Upload error:', err);
     } finally {
-      setUploading(false);
+      setTimeout(() => {
+        setUploading(false);
+        setProcessing(false);
+        setUploadProgress('');
+      }, 3000);
+    }
+  };
+
+  const handleProcessPdf = async (pdfId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent navigation when clicking process button
+    
+    try {
+      setError(null);
+      const response = await fetch('/api/chunk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pdfId }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh the PDF list to show updated status
+        await fetchPdfs();
+      } else {
+        setError(data.error || 'Failed to process PDF');
+      }
+    } catch (err) {
+      setError('Error processing PDF');
+      console.error('Processing error:', err);
     }
   };
 
@@ -135,25 +185,32 @@ export default function SourceSelector() {
                 type="file"
                 accept=".pdf"
                 onChange={handleFileUpload}
-                disabled={uploading}
+                disabled={uploading || processing}
                 className="hidden"
               />
               <div className={`
                 bg-white rounded-xl shadow-lg p-8 border-2 border-dashed border-gray-300
                 hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer
-                ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
+                ${uploading || processing ? 'opacity-75 cursor-not-allowed' : ''}
               `}>
                 <div className="text-center">
                   <svg className="w-12 h-12 text-blue-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {uploading ? 'Uploading...' : 'Upload New PDF'}
+                    {uploading ? 'Uploading...' : processing ? 'Processing...' : 'Upload New PDF'}
                   </h3>
                   <p className="text-gray-600">
-                    {uploading ? 'Processing your document...' : 'Click to select a PDF file from your computer'}
+                    {uploading ? 'Uploading your document...' : 
+                     processing ? 'Generating chunks and embeddings...' : 
+                     'Click to select a PDF file from your computer'}
                   </p>
-                  {uploading && (
+                  {uploadProgress && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-800">{uploadProgress}</p>
+                    </div>
+                  )}
+                  {(uploading || processing) && (
                     <div className="mt-4">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
                     </div>
@@ -187,10 +244,22 @@ export default function SourceSelector() {
                         <p className="text-sm text-gray-500">
                           Uploaded on {formatDate(pdf.createdAt)}
                         </p>
-                        <div className="mt-3">
+                        <div className="mt-3 flex items-center space-x-2">
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             Click to open
                           </span>
+                          {pdf.hasChunks ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              ✅ Processed ({pdf.chunksCount} chunks)
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => handleProcessPdf(pdf.id, e)}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors"
+                            >
+                              ⏳ Click to process
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

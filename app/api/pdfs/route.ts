@@ -7,17 +7,28 @@ export async function GET() {
       orderBy: {
         createdAt: 'desc'
       },
-      select: {
-        id: true,
-        title: true,
-        url: true,
-        createdAt: true
+      include: {
+        chunks: {
+          select: {
+            id: true
+          }
+        }
       }
     });
 
+    // Transform to include processing status
+    const pdfsWithStatus = pdfs.map(pdf => ({
+      id: pdf.id,
+      title: pdf.title,
+      url: pdf.url,
+      createdAt: pdf.createdAt,
+      hasChunks: pdf.chunks.length > 0,
+      chunksCount: pdf.chunks.length
+    }));
+
     return NextResponse.json({
       success: true,
-      pdfs
+      pdfs: pdfsWithStatus
     });
   } catch (error) {
     console.error('Error fetching PDFs:', error);
