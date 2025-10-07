@@ -13,25 +13,84 @@ model PDF {
   url       String
   createdAt DateTime @default(now())
   chunks    Chunk[]
-  quizzes   Quiz[]
+  quizzes   Quiz[]   @relation("QuizPDFs")
 }
 
 model Chunk {
-  id        String                        @id @default(cuid())
+  id        String @id @default(cuid())
   content   String
   pageNum   Int
   pdfId     String
-  embedding Unsupported("vector(768)")?
-  pdf       PDF                           @relation(fields: [pdfId], references: [id])
+  pdf       PDF    @relation(fields: [pdfId], references: [id])
 }
 
+// Enhanced quiz models
 model Quiz {
+  id          String        @id @default(cuid())
+  title       String
+  createdBy   String?
+  createdAt   DateTime      @default(now())
+  numMcq      Int           @default(0)
+  numSaq      Int           @default(0)
+  numLaq      Int           @default(0)
+  metadata    Json?
+  questions   Question[]
+  attempts    QuizAttempt[]
+  pdfs        PDF[]         @relation("QuizPDFs")
+}
+
+model Question {
+  id             String           @id @default(cuid())
+  quizId         String
+  qtype          String           // 'mcq' | 'saq' | 'laq'
+  stem           String
+  expectedAnswer String?          // for SAQ/LAQ
+  guidance       Json?            // rubric, keywords etc
+  maxScore       Int              @default(4)
+  source         Json?            // [{pdfId, page, snippet}]
+  explanation    String?
+  quiz           Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  mcqOptions     McqOption[]
+  attemptAnswers AttemptAnswer[]
+}
+
+model McqOption {
   id          String   @id @default(cuid())
-  pdfId       String
-  question    String
-  options     String[]
-  correct     String
-  explanation String?
-  createdAt   DateTime @default(now())
-  pdf         PDF      @relation(fields: [pdfId], references: [id])
+  questionId  String
+  optionIndex Int
+  text        String
+  isCorrect   Boolean  @default(false)
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id         String          @id @default(cuid())
+  quizId     String
+  userId     String
+  startedAt  DateTime        @default(now())
+  finishedAt DateTime?
+  totalScore Int?
+  maxScore   Int?
+  metadata   Json?
+  quiz       Quiz            @relation(fields: [quizId], references: [id])
+  answers    AttemptAnswer[]
+}
+
+model AttemptAnswer {
+  id         String      @id @default(cuid())
+  attemptId  String
+  questionId String
+  qtype      String
+  answerJson Json        // {selectedIndex:0} or {text:"..."}
+  score      Int?
+  maxScore   Int?
+  feedback   String?
+  attempt    QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question   Question    @relation(fields: [questionId], references: [id])
+}
+
+model UserProgress {
+  userId       String   @id
+  progressJson Json     // e.g. {topic: {attempts: n, avg_score: ..}}
+  updatedAt    DateTime @default(now()) @updatedAt
 }
