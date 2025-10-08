@@ -7,7 +7,12 @@ export async function GET() {
       orderBy: {
         createdAt: 'desc'
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        fileSize: true,
+        mimeType: true,
         chunks: {
           select: {
             id: true
@@ -17,13 +22,16 @@ export async function GET() {
     });
 
     // Transform to include processing status
+    // Use database storage - construct URL to API endpoint instead of file path
     const pdfsWithStatus = pdfs.map(pdf => ({
       id: pdf.id,
       title: pdf.title,
-      url: pdf.url,
+      url: `/api/pdf/${pdf.id}?download=true`, // URL to retrieve PDF from database
       createdAt: pdf.createdAt,
       hasChunks: pdf.chunks.length > 0,
-      chunksCount: pdf.chunks.length
+      chunksCount: pdf.chunks.length,
+      fileSize: pdf.fileSize,
+      mimeType: pdf.mimeType
     }));
 
     return NextResponse.json({
