@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { pdf } from 'pdf-parse';
 import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
+// Configure route segment for Vercel
+export const runtime = 'nodejs';
+export const maxDuration = 60; // Maximum execution time in seconds (for Pro plan)
+export const dynamic = 'force-dynamic'; // Disable static optimization
+
 interface ChunkData {
   content: string;
   pageNum: number;
@@ -136,8 +141,18 @@ async function processChunksAndEmbeddings(pdfId: string, buffer: Buffer) {
 
 export async function POST(request: NextRequest) {
   console.log('📤 Upload API called');
+  console.log('Method:', request.method);
+  console.log('Headers:', Object.fromEntries(request.headers.entries()));
   
   try {
+    // Verify this is a POST request
+    if (request.method !== 'POST') {
+      return NextResponse.json(
+        { error: 'Method not allowed' },
+        { status: 405, headers: { 'Allow': 'POST' } }
+      );
+    }
+
     const formData = await request.formData();
     console.log('✅ FormData parsed successfully');
     
@@ -228,14 +243,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Add OPTIONS handler for CORS
+// Add OPTIONS handler for CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
-    status: 200,
+    status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
     },
   });
+}
+
+// Add GET handler to prevent 405 errors
+export async function GET() {
+  return NextResponse.json(
+    { 
+      error: 'Method not allowed',
+      message: 'This endpoint only accepts POST requests with multipart/form-data'
+    },
+    { status: 405, headers: { 'Allow': 'POST, OPTIONS' } }
+  );
 }
