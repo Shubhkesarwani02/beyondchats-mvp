@@ -22,7 +22,7 @@ export default function Navigation() {
   return (
     <nav className="sticky top-0 z-40 backdrop-blur-xl glass/30 border-b border-[var(--color-border)]/50 supports-[backdrop-filter]:glass">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16 gap-6">
+        <div className="flex justify-between items-center h-16 gap-4 sm:gap-6">
           <Link href="/" className="relative flex items-center gap-2 group">
             <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white shadow-md shadow-indigo-500/30">
               📚
@@ -31,8 +31,8 @@ export default function Navigation() {
           </Link>
 
             {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-2 relative">
-              <div className="flex gap-1 p-1 rounded-full bg-[var(--color-bg-alt)]/80 dark:bg-white/5 border border-[var(--color-border)] relative">
+            <div className="hidden md:flex items-center gap-2 relative overflow-x-auto no-scrollbar max-w-full">
+              <div className="flex gap-1 p-1 rounded-full bg-[var(--color-bg-alt)]/80 dark:bg-white/5 border border-[var(--color-border)] relative whitespace-nowrap">
                 {navItems.map(item => {
                   const active = isActive(item.href);
                   return (
@@ -51,7 +51,7 @@ export default function Navigation() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 ml-auto md:ml-0">
+            <div className="flex items-center gap-2 sm:gap-3 ml-auto md:ml-0">
               {/* Theme toggle removed (single light mode) */}
 
               {/* Mobile menu button */}
@@ -76,7 +76,7 @@ export default function Navigation() {
       {/* Mobile sheet */}
       {mobileOpen && (
         <div className="md:hidden px-4 pb-4 animate-fade-in-up">
-          <div className="flex flex-col gap-2 bg-[var(--color-bg-alt)]/80 backdrop-blur-xl border border-[var(--color-border)] rounded-xl p-3 shadow-lg">
+          <div className="flex flex-col gap-2 bg-[var(--color-bg-alt)]/90 backdrop-blur-xl border border-[var(--color-border)] rounded-xl p-3 shadow-lg">
             {navItems.map(item => {
               const active = isActive(item.href);
               return (

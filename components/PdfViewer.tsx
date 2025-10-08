@@ -19,6 +19,10 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState(1.0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [fitMode, setFitMode] = useState<'fit-width' | 'custom'>('fit-width');
+  const lastTapRef = useRef<number>(0);
+  const [showMiniMapMobile, setShowMiniMapMobile] = useState(false);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
@@ -92,6 +96,29 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
     forceThumbRefresh(prev => !prev);
   };
 
+  // Auto-fit width scaling on container resize when in fit-width mode
+  useEffect(() => {
+    if (fitMode !== 'fit-width') return;
+    const handle = () => {
+  if (!pdfDocument || !canvasRef.current || !containerRef.current) return;
+      (async () => {
+        try {
+          const page = await pdfDocument.getPage(currentPage);
+          const unscaledViewport = page.getViewport({ scale: 1 });
+          const containerEl = containerRef.current;
+          if (!containerEl) return;
+          const containerWidth = containerEl.clientWidth - 16; // padding allowance
+            const newScale = Math.min(3, Math.max(0.5, containerWidth / unscaledViewport.width));
+            setScale(prev => Math.abs(prev - newScale) > 0.01 ? newScale : prev);
+        } catch {}
+      })();
+    };
+    handle();
+    const resizeObserver = new ResizeObserver(handle);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [pdfDocument, currentPage, fitMode]);
+
   useEffect(() => {
     const renderPage = async (pageNumber: number) => {
       if (!pdfDocument || !canvasRef.current) return;
@@ -164,15 +191,30 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
   };
 
   const zoomIn = () => {
+    setFitMode('custom');
     setScale(prev => Math.min(prev + 0.25, 3));
   };
 
   const zoomOut = () => {
+    setFitMode('custom');
     setScale(prev => Math.max(prev - 0.25, 0.5));
   };
 
   const resetZoom = () => {
-    setScale(1.0);
+    setFitMode('fit-width');
+  };
+
+  const handleCanvasDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 450) {
+      // double tap
+      setFitMode('custom');
+      setScale(prev => {
+        const target = prev < 1.5 ? prev * 1.6 : 1.0;
+        return Math.min(3, Math.max(0.5, target));
+      });
+    }
+    lastTapRef.current = now;
   };
 
   if (loading) {
@@ -206,10 +248,10 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-bg)] relative">
+    <div className="flex flex-col h-full bg-[var(--color-bg)] relative" ref={containerRef}>
       {/* Toolbar */}
-      <div className="glass border-b border-[var(--color-border)]/70 p-2 sm:p-3 flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-10 rounded-none safe-area-inset">
-        <div className="flex items-center space-x-2 sm:space-x-4">
+      <div className="glass border-b border-[var(--color-border)]/70 p-2 sm:p-3 flex flex-wrap items-center gap-2 sm:gap-4 sticky top-0 z-10 rounded-none safe-area-inset">
+        <div className="flex items-center space-x-2 sm:space-x-4 order-1">
           {/* Navigation Controls */}
           <div className="flex items-center space-x-1 sm:space-x-2">
             <button
@@ -241,7 +283,7 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
         </div>
 
         {/* Zoom Controls */}
-        <div className="flex items-center space-x-1 sm:space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 order-3 sm:order-2 ml-auto">
           <button
             onClick={zoomOut}
             className="p-1.5 sm:p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors touch-target"
@@ -251,7 +293,7 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
             </svg>
           </button>
           
-          <span className="text-xs sm:text-sm text-[var(--color-text-muted)] min-w-[3rem] sm:min-w-[4rem] text-center">{Math.round(scale * 100)}%</span>
+          <span className="text-xs sm:text-sm text-[var(--color-text-muted)] min-w-[3rem] sm:min-w-[4rem] text-center">{fitMode==='fit-width' ? 'Fit' : Math.round(scale * 100)+ '%'} </span>
           
           <button
             onClick={zoomIn}
@@ -264,23 +306,35 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
           
           <button
             onClick={resetZoom}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg-alt)] hover:bg-[var(--color-bg)] transition-colors touch-target hidden sm:inline-block"
+            className="px-2 sm:px-3 py-1 text-[10px] sm:text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg-alt)] hover:bg-[var(--color-bg)] transition-colors touch-target"
           >
-            Reset
+            {fitMode==='fit-width' ? 'Fit ✓' : 'Fit'}
           </button>
         </div>
+
+        {/* Mobile mini-map toggle */}
+        {numPages > 1 && (
+          <div className="flex items-center order-2 sm:order-3 ml-0 sm:ml-4">
+            <button
+              onClick={() => setShowMiniMapMobile(v => !v)}
+              className="md:hidden px-2 py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-alt)] text-[10px] font-medium"
+            >
+              {showMiniMapMobile ? 'Hide pages' : 'Pages'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-auto p-2 sm:p-4 mobile-scroll">
+      <div className="flex-1 overflow-auto p-2 sm:p-4 mobile-scroll" onClick={handleCanvasDoubleTap}>
         <div className="flex justify-center">
-          <canvas ref={canvasRef} className="shadow-lg border border-[var(--color-border)] max-w-full bg-white" />
+          <canvas ref={canvasRef} className="shadow-lg border border-[var(--color-border)] max-w-full bg-white touch-pan-y" />
         </div>
       </div>
 
       {/* Mini-map placeholder - Hide on mobile to save space */}
       {numPages > 1 && (
-        <div className="absolute right-1 sm:right-2 top-16 sm:top-24 w-16 sm:w-24 flex-col gap-1 sm:gap-2 max-h-[60%] sm:max-h-[70%] overflow-auto rounded-lg sm:rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)]/85 backdrop-blur-md p-1 sm:p-2 shadow-sm hidden md:flex">
+        <div className={`absolute right-1 sm:right-2 top-20 sm:top-24 w-16 sm:w-24 flex-col gap-1 sm:gap-2 max-h-[60%] sm:max-h-[70%] overflow-auto rounded-lg sm:rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)]/85 backdrop-blur-md p-1 sm:p-2 shadow-sm ${showMiniMapMobile ? 'flex' : 'hidden'} md:flex`}>
           {Array.from({ length: numPages }).map((_, i) => {
             const active = currentPage === i + 1;
             const dataUrl = thumbCacheRef.current[i+1];

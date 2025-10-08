@@ -239,7 +239,7 @@ export default function ChatPanel({ pdfId, onGoToPage, onPdfChange }: ChatPanelP
 
         {messages.map(message => (
           <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`} role="group" aria-label={message.type === 'user' ? 'Your message' : 'Assistant response'}>
-            <div className={`group relative max-w-[85%] sm:max-w-[78%] px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-sm text-sm leading-relaxed tracking-normal whitespace-pre-wrap ${message.type === 'user' ? 'bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white rounded-br-sm' : 'glass border border-[var(--color-border)]/60 text-[var(--color-text)] rounded-bl-sm'} transition-all`}>
+            <div className={`group relative break-words word-break-all overflow-hidden max-w-[92%] sm:max-w-[78%] px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-sm text-sm leading-relaxed tracking-normal whitespace-pre-wrap ${message.type === 'user' ? 'bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white rounded-br-sm' : 'glass border border-[var(--color-border)]/60 text-[var(--color-text)] rounded-bl-sm'} transition-all`}>
               <div className={`prose-chat ${message.type === 'user' ? '' : 'text-[var(--color-text)]'} text-sm`}>{message.content}</div>
               {message.type === 'assistant' && message.sources && message.sources.length > 0 && (
                 <details className="mt-2 sm:mt-3 group/source">
