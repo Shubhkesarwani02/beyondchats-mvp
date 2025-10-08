@@ -109,34 +109,34 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-      <div className="mb-10 flex flex-col lg:flex-row gap-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      <div className="mb-8 sm:mb-10 flex flex-col lg:flex-row gap-6 sm:gap-8">
         <Card className="flex-1" interactive>
           <CardHeader>
             <CardTitle>Upload PDF</CardTitle>
             <CardDescription>Supported: single PDF per upload (up to ~25MB)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-8 text-center relative">
+            <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-4 sm:p-8 text-center relative">
               <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" id="fileInput" />
-              <label htmlFor="fileInput" className="cursor-pointer inline-flex flex-col items-center gap-3">
-                <span className="h-14 w-14 rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow">📄</span>
+              <label htmlFor="fileInput" className="cursor-pointer inline-flex flex-col items-center gap-3 touch-target">
+                <span className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white flex items-center justify-center shadow text-xl sm:text-2xl">📄</span>
                 <span className="text-sm font-medium">{file ? 'Change File' : 'Choose PDF File'}</span>
                 <span className="text-xs text-[var(--color-text-muted)]">Click to select</span>
               </label>
               {file && (
-                <div className="mt-6 text-left bg-[var(--color-bg)]/60 rounded-lg p-4 text-sm border border-[var(--color-border)]">
+                <div className="mt-4 sm:mt-6 text-left bg-[var(--color-bg)]/60 rounded-lg p-3 sm:p-4 text-sm border border-[var(--color-border)]">
                   <p className="font-medium truncate">{file.name}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">Size: {(file.size/1024/1024).toFixed(2)} MB</p>
                 </div>
               )}
-              <div className="mt-6 flex justify-center">
-                <Button onClick={handleUpload} disabled={!file || uploading} variant="primary" className="min-w-40">
+              <div className="mt-4 sm:mt-6 flex justify-center">
+                <Button onClick={handleUpload} disabled={!file || uploading} variant="primary" className="min-w-32 sm:min-w-40">
                   {uploading ? 'Uploading…' : 'Upload PDF'}
                 </Button>
               </div>
               {uploadResult && (
-                <div className="mt-6 text-left text-xs">
+                <div className="mt-4 sm:mt-6 text-left text-xs">
                   {uploadResult.success ? (
                     <p className="text-green-600">{uploadResult.message}</p>
                   ) : (
@@ -179,32 +179,38 @@ export default function UploadPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold tracking-tight">Your PDFs</h2>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-base sm:text-lg font-semibold tracking-tight">Your PDFs</h2>
         <Button variant="subtle" size="sm" onClick={() => setRefreshFlag(f => f + 1)}>Refresh</Button>
       </div>
 
       {loadingPdfs ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-40 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)] animate-pulse" />
+            <div key={i} className="h-32 sm:h-40 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)] animate-pulse" />
           ))}
         </div>
       ) : pdfs.length === 0 ? (
-        <div className="text-sm text-[var(--color-text-muted)] italic">No PDFs uploaded yet.</div>
+        <div className="text-center py-8 sm:py-12">
+          <div className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-gray-400 to-gray-500 flex items-center justify-center text-white text-xl sm:text-2xl">
+            📁
+          </div>
+          <h3 className="text-base sm:text-lg font-semibold mb-2">No PDFs uploaded yet</h3>
+          <p className="text-sm text-[var(--color-text-muted)]">Upload your first PDF to get started with AI-powered learning.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {pdfs.map(pdf => (
             <Card key={pdf.id} interactive className="group overflow-hidden">
-              <CardContent className="pt-5 pb-4">
+              <CardContent className="pt-4 sm:pt-5 pb-3 sm:pb-4">
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1">{pdf.title}</h3>
+                  <h3 className="font-medium text-sm leading-snug line-clamp-2 flex-1 text-responsive">{pdf.title}</h3>
                   <Badge variant={pdf.hasChunks ? 'success' : 'warning'}>{pdf.hasChunks ? 'Ready' : 'Pending'}</Badge>
                 </div>
                 <div className="h-1.5 bg-[var(--color-border)]/60 rounded-full overflow-hidden mb-3">
                   <div className={`h-full transition-all ${pdf.hasChunks ? 'bg-gradient-to-r from-indigo-600 to-fuchsia-500 w-full' : 'bg-gradient-to-r from-amber-400 to-amber-500 w-1/3 animate-pulse'}`} />
                 </div>
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
+                <div className="flex items-center justify-between text-[9px] sm:text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
                   <span>{new Date(pdf.createdAt).toLocaleDateString()}</span>
                   <span>{pdf.chunksCount} chunks</span>
                 </div>

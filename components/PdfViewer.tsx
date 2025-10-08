@@ -208,29 +208,30 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
   return (
     <div className="flex flex-col h-full bg-[var(--color-bg)] relative">
       {/* Toolbar */}
-      <div className="glass border-b border-[var(--color-border)]/70 p-3 flex items-center justify-between gap-4 sticky top-0 z-10 rounded-none">
-        <div className="flex items-center space-x-4">
+      <div className="glass border-b border-[var(--color-border)]/70 p-2 sm:p-3 flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-10 rounded-none safe-area-inset">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           {/* Navigation Controls */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             <button
               onClick={goToPrevPage}
               disabled={currentPage <= 1}
-              className="p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-target"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             
-            <div className="flex items-center space-x-2">
-              <input type="number" value={currentPage} onChange={(e) => goToPage(parseInt(e.target.value) || 1)} className="w-16 px-2 py-1 text-center border border-[var(--color-border)] rounded text-sm bg-[var(--color-bg-alt)] focus:outline-none focus:ring-2 focus:ring-indigo-400" min={1} max={numPages} />
-              <span className="text-sm text-[var(--color-text-muted)]">of {numPages}</span>
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <input type="number" value={currentPage} onChange={(e) => goToPage(parseInt(e.target.value) || 1)} className="w-12 sm:w-16 px-1 sm:px-2 py-1 text-center border border-[var(--color-border)] rounded text-xs sm:text-sm bg-[var(--color-bg-alt)] focus:outline-none focus:ring-2 focus:ring-indigo-400" min={1} max={numPages} />
+              <span className="text-xs sm:text-sm text-[var(--color-text-muted)] hidden sm:inline">of</span>
+              <span className="text-xs sm:text-sm text-[var(--color-text-muted)]">{numPages}</span>
             </div>
 
             <button
               onClick={goToNextPage}
               disabled={currentPage >= numPages}
-              className="p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-target"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -240,21 +241,21 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
         </div>
 
         {/* Zoom Controls */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <button
             onClick={zoomOut}
-            className="p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors touch-target"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
           
-          <span className="text-sm text-[var(--color-text-muted)] min-w-[4rem] text-center">{Math.round(scale * 100)}%</span>
+          <span className="text-xs sm:text-sm text-[var(--color-text-muted)] min-w-[3rem] sm:min-w-[4rem] text-center">{Math.round(scale * 100)}%</span>
           
           <button
             onClick={zoomIn}
-            className="p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg bg-[var(--color-bg-alt)] border border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors touch-target"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -263,7 +264,7 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
           
           <button
             onClick={resetZoom}
-            className="px-3 py-1 text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg-alt)] hover:bg-[var(--color-bg)] transition-colors"
+            className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg-alt)] hover:bg-[var(--color-bg)] transition-colors touch-target hidden sm:inline-block"
           >
             Reset
           </button>
@@ -271,15 +272,15 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-2 sm:p-4 mobile-scroll">
         <div className="flex justify-center">
           <canvas ref={canvasRef} className="shadow-lg border border-[var(--color-border)] max-w-full bg-white" />
         </div>
       </div>
 
-      {/* Mini-map placeholder (future enhancement could render thumbnails) */}
+      {/* Mini-map placeholder - Hide on mobile to save space */}
       {numPages > 1 && (
-        <div className="absolute right-2 top-24 w-24 flex flex-col gap-2 max-h-[70%] overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)]/85 backdrop-blur-md p-2 shadow-sm">
+        <div className="absolute right-1 sm:right-2 top-16 sm:top-24 w-16 sm:w-24 flex-col gap-1 sm:gap-2 max-h-[60%] sm:max-h-[70%] overflow-auto rounded-lg sm:rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-alt)]/85 backdrop-blur-md p-1 sm:p-2 shadow-sm hidden md:flex">
           {Array.from({ length: numPages }).map((_, i) => {
             const active = currentPage === i + 1;
             const dataUrl = thumbCacheRef.current[i+1];
@@ -287,15 +288,15 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
               <button
                 key={i}
                 onClick={() => goToPage(i + 1)}
-                className={`group relative rounded-lg overflow-hidden border ${active ? 'border-indigo-500 ring-2 ring-indigo-400/40' : 'border-[var(--color-border)] hover:border-indigo-300'} transition focus:outline-none focus:ring-2 focus:ring-indigo-400`}
+                className={`group relative rounded-md sm:rounded-lg overflow-hidden border ${active ? 'border-indigo-500 ring-2 ring-indigo-400/40' : 'border-[var(--color-border)] hover:border-indigo-300'} transition focus:outline-none focus:ring-2 focus:ring-indigo-400 touch-target`}
                 aria-label={`Go to page ${i+1}`}
               >
                 {dataUrl ? (
                   <Image src={dataUrl} alt={`Page ${i+1} thumbnail`} width={80} height={120} className="w-full h-auto block" />
                 ) : (
-                  <div className="w-full h-16 flex items-center justify-center text-[10px] text-[var(--color-text-muted)] bg-[var(--color-bg)]">{i+1}</div>
+                  <div className="w-full h-12 sm:h-16 flex items-center justify-center text-[9px] sm:text-[10px] text-[var(--color-text-muted)] bg-[var(--color-bg)]">{i+1}</div>
                 )}
-                <span className="absolute bottom-0 right-0 m-1 px-1.5 py-0.5 text-[9px] rounded bg-black/50 text-white font-medium">{i+1}</span>
+                <span className="absolute bottom-0 right-0 m-0.5 sm:m-1 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[9px] rounded bg-black/50 text-white font-medium">{i+1}</span>
               </button>
             );
           })}

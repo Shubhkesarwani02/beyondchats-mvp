@@ -51,14 +51,14 @@ export default function DashboardPage() {
 	const recent = attempts[attempts.length-1];
 
 	return (
-		<div className="max-w-7xl mx-auto px-6 py-10">
-			<div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-				<div>
-					<h1 className="text-2xl font-semibold tracking-tight gradient-text mb-2">Learning Dashboard</h1>
+		<div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+			<div className="mb-8 sm:mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6">
+				<div className="text-center sm:text-left">
+					<h1 className="text-xl sm:text-2xl font-semibold tracking-tight gradient-text mb-2">Learning Dashboard</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">Overview of your study performance and progress trends.</p>
 				</div>
 				{!loading && (
-					<div className="flex items-center gap-6">
+					<div className="flex items-center justify-center sm:justify-start gap-6">
 						<div className="flex items-center gap-3">
 							<CircularProgress value={avg} />
 							<div className="text-xs text-[var(--color-text-muted)] leading-tight w-28">Average quiz score</div>
@@ -68,46 +68,46 @@ export default function DashboardPage() {
 			</div>
 
 			{/* Metric Cards */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+			<div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 sm:mb-10">{/*'}'*/}
 				<Card interactive>
-					<CardContent className="pt-5 pb-5">
-						<p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Quizzes Taken</p>
-						<h3 className="text-2xl font-semibold">{loading ? '—' : totalQuizzes}</h3>
+					<CardContent className="pt-4 sm:pt-5 pb-4 sm:pb-5">
+						<p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Quizzes Taken</p>
+						<h3 className="text-xl sm:text-2xl font-semibold">{loading ? '—' : totalQuizzes}</h3>
 					</CardContent>
 				</Card>
 				<Card interactive>
-					<CardContent className="pt-5 pb-5">
-						<p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Avg Score</p>
-						<h3 className="text-2xl font-semibold">{loading ? '—' : avg + '%'}</h3>
-						<ProgressBar value={avg} className="mt-3" />
+					<CardContent className="pt-4 sm:pt-5 pb-4 sm:pb-5">
+						<p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Avg Score</p>
+						<h3 className="text-xl sm:text-2xl font-semibold">{loading ? '—' : avg + '%'}</h3>
+						<ProgressBar value={avg} className="mt-2 sm:mt-3" />
 					</CardContent>
 				</Card>
 				<Card interactive>
-					<CardContent className="pt-5 pb-5">
-						<p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Best Recent</p>
-						<h3 className="text-xl font-semibold">{loading || !recent ? '—' : recent.percentage + '%'}</h3>
-						<p className="text-[10px] uppercase text-[var(--color-text-muted)] mt-1 line-clamp-1">{recent?.title || ''}</p>
+					<CardContent className="pt-4 sm:pt-5 pb-4 sm:pb-5">
+						<p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Best Recent</p>
+						<h3 className="text-lg sm:text-xl font-semibold">{loading || !recent ? '—' : recent.percentage + '%'}</h3>
+						<p className="text-[8px] sm:text-[10px] uppercase text-[var(--color-text-muted)] mt-1 line-clamp-1">{recent?.title || ''}</p>
 					</CardContent>
 				</Card>
 				<Card interactive>
-					<CardContent className="pt-5 pb-5">
-						<p className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Consistency</p>
-						<h3 className="text-xl font-semibold">{loading ? '—' : attempts.length >= 3 ? 'Improving' : 'Collecting'}</h3>
-						<p className="text-[10px] text-[var(--color-text-muted)] mt-1">Last {attempts.length} quizzes</p>
+					<CardContent className="pt-4 sm:pt-5 pb-4 sm:pb-5">
+						<p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] mb-1">Consistency</p>
+						<h3 className="text-lg sm:text-xl font-semibold">{loading ? '—' : attempts.length >= 3 ? 'Improving' : 'Collecting'}</h3>
+						<p className="text-[8px] sm:text-[10px] text-[var(--color-text-muted)] mt-1">Last {attempts.length} quizzes</p>
 					</CardContent>
 				</Card>
 			</div>
 
-			<div className="grid grid-cols-1 xl:grid-cols-3 gap-10 items-start">
+			<div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-10 items-start">
 				{/* Charts Section */}
-				<div className="xl:col-span-2 space-y-10">
+				<div className="xl:col-span-2 space-y-6 sm:space-y-10">
 					<Card>
 						<CardHeader>
 							<CardTitle>Performance Trend</CardTitle>
 							<CardDescription>Scores across your recent quizzes</CardDescription>
 						</CardHeader>
 						<CardContent>
-											{loading ? <div className="h-72 animate-pulse rounded-xl bg-[var(--color-bg-alt)] border border-[var(--color-border)]" /> : attempts.length === 0 ? <p className="text-xs text-[var(--color-text-muted)]">No attempts yet.</p> : (
+											{loading ? <div className="h-48 sm:h-72 animate-pulse rounded-xl bg-[var(--color-bg-alt)] border border-[var(--color-border)]" /> : attempts.length === 0 ? <p className="text-xs text-[var(--color-text-muted)]">No attempts yet.</p> : (
 								<ProgressChart data={attempts.map(a => ({ quizTitle: a.title, percentage: a.percentage, score: a.score, maxScore: a.maxScore, date: a.date }))} type="line" />
 							)}
 						</CardContent>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
 							<CardDescription>How your scores cluster by performance band</CardDescription>
 						</CardHeader>
 						<CardContent>
-											{loading ? <div className="h-72 animate-pulse rounded-xl bg-[var(--color-bg-alt)] border border-[var(--color-border)]" /> : attempts.length === 0 ? <p className="text-xs text-[var(--color-text-muted)]">No data yet.</p> : (
+											{loading ? <div className="h-48 sm:h-72 animate-pulse rounded-xl bg-[var(--color-bg-alt)] border border-[var(--color-border)]" /> : attempts.length === 0 ? <p className="text-xs text-[var(--color-text-muted)]">No data yet.</p> : (
 								<ProgressChart data={attempts.map(a => ({ quizTitle: a.title, percentage: a.percentage, score: a.score, maxScore: a.maxScore, date: a.date }))} type="pie" />
 							)}
 						</CardContent>
@@ -127,26 +127,26 @@ export default function DashboardPage() {
 				</div>
 
 				{/* Topic Performance */}
-				<div className="space-y-10">
+				<div className="space-y-6 sm:space-y-10">
 					<Card>
 						<CardHeader>
 							<CardTitle>Recent Quizzes</CardTitle>
 							<CardDescription>Your latest attempts at a glance</CardDescription>
 						</CardHeader>
-						<CardContent className="space-y-4">
+						<CardContent className="space-y-3 sm:space-y-4">
 							{loading ? (
 								<div className="space-y-3">
-									{Array.from({ length: 3 }).map((_,i) => <div key={i} className="h-14 rounded-lg border border-[var(--color-border)] animate-pulse" />)}
+									{Array.from({ length: 3 }).map((_,i) => <div key={i} className="h-12 sm:h-14 rounded-lg border border-[var(--color-border)] animate-pulse" />)}
 								</div>
 							) : attempts.map(a => (
-								<div key={a.id} className="flex items-center gap-4 p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)] transition">
-									<div className="w-14 text-center">
+								<div key={a.id} className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)] transition">
+									<div className="w-12 sm:w-14 text-center flex-shrink-0">
 										<div className="text-sm font-semibold">{a.percentage}%</div>
-										<div className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Score</div>
+										<div className="text-[9px] sm:text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Score</div>
 									</div>
 									<div className="flex-1 min-w-0">
 										<p className="text-sm font-medium line-clamp-1">{a.title}</p>
-										<p className="text-[11px] text-[var(--color-text-muted)]">{new Date(a.date).toLocaleDateString()}</p>
+										<p className="text-[10px] sm:text-[11px] text-[var(--color-text-muted)]">{new Date(a.date).toLocaleDateString()}</p>
 									</div>
 									<Badge variant={a.percentage >= 85 ? 'success' : a.percentage >= 70 ? 'default' : a.percentage >= 50 ? 'warning' : 'danger'}>
 										{a.percentage >= 85 ? 'High' : a.percentage >= 70 ? 'Good' : a.percentage >= 50 ? 'Fair' : 'Low'}
@@ -158,7 +158,7 @@ export default function DashboardPage() {
 
 					<div>
 						{loading ? (
-							<div className="h-80 animate-pulse rounded-xl border border-[var(--color-border)]" />
+							<div className="h-64 sm:h-80 animate-pulse rounded-xl border border-[var(--color-border)]" />
 						) : (
 							<StrengthList topics={topicStats} />
 						)}

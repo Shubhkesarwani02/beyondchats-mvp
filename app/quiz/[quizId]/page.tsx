@@ -324,26 +324,26 @@ export default function QuizPage() {
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] py-10">
-      <div className="max-w-4xl mx-auto px-6">
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-alt)] shadow-sm p-8 relative overflow-hidden">
+    <div className="min-h-screen bg-[var(--color-bg)] py-4 sm:py-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="rounded-xl sm:rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-alt)] shadow-sm p-4 sm:p-8 relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-pink-500" />
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight mb-2 gradient-text">{quiz.title}</h1>
-            <div className="flex justify-between items-center text-sm">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-lg sm:text-2xl font-semibold tracking-tight mb-2 gradient-text text-responsive">{quiz.title}</h1>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-sm">
               <p className="text-[var(--color-text-muted)]">
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </p>
               <p className="text-[var(--color-text-muted)]">Answered: {getAnsweredCount()}/{quiz.questions.length}</p>
             </div>
-            <div className="w-full h-2 rounded-full bg-[var(--color-border)]/60 mt-4 overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-[var(--color-border)]/60 mt-3 sm:mt-4 overflow-hidden">
               <div className="h-full bg-gradient-to-r from-indigo-600 via-fuchsia-500 to-pink-500 transition-all duration-500" style={{ width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }} />
             </div>
           </div>
 
           {/* Question */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <QuestionRenderer 
               question={currentQuestion}
               answer={answers[currentQuestion.id]}
@@ -352,20 +352,20 @@ export default function QuizPage() {
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-between items-center mt-4">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-4 gap-3 sm:gap-0">
             <button
               onClick={prevQuestion}
               disabled={currentQuestionIndex === 0}
-              className="px-5 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              className="px-4 sm:px-5 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium touch-target"
             >
               Previous
             </button>
 
-            <div className="flex space-x-4">
+            <div className="flex justify-end space-x-3 sm:space-x-4">
               {currentQuestionIndex < quiz.questions.length - 1 ? (
                 <button
                   onClick={nextQuestion}
-                  className="px-6 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white font-medium shadow hover:shadow-md transition"
+                  className="px-4 sm:px-6 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white font-medium shadow hover:shadow-md transition touch-target"
                 >
                   Next
                 </button>
@@ -373,7 +373,7 @@ export default function QuizPage() {
                 <button
                   onClick={submitQuiz}
                   disabled={isSubmitting || getAnsweredCount() < quiz.questions.length}
-                  className="px-8 h-11 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow"
+                  className="px-6 sm:px-8 h-11 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow touch-target"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
                 </button>
@@ -382,14 +382,14 @@ export default function QuizPage() {
           </div>
 
           {/* Answer Progress */}
-          <div className="mt-10 pt-6 border-t border-[var(--color-border)]">
+          <div className="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
             <p className="text-xs font-semibold tracking-wide text-[var(--color-text-muted)] mb-3">Quick Jump</p>
-            <div className="grid grid-cols-10 gap-2">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
               {quiz.questions.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentQuestionIndex(index)}
-                  className={`h-8 w-8 rounded-lg text-xs font-medium transition-all border ${index === currentQuestionIndex ? 'bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white border-transparent shadow' : answers[quiz.questions[index].id] ? 'bg-green-50 text-green-700 border-green-200' : 'bg-[var(--color-bg)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-alt)]'}`}
+                  className={`h-8 w-8 sm:w-8 rounded-lg text-xs font-medium transition-all border touch-target ${index === currentQuestionIndex ? 'bg-gradient-to-tr from-indigo-600 to-fuchsia-500 text-white border-transparent shadow' : answers[quiz.questions[index].id] ? 'bg-green-50 text-green-700 border-green-200' : 'bg-[var(--color-bg)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-alt)]'}`}
                 >
                   {index + 1}
                 </button>
@@ -430,12 +430,12 @@ function MCQRenderer({
   const selectedIndex = answer?.selectedIndex;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-3 leading-snug">{question.stem}</h2>
+        <h2 className="text-base sm:text-lg font-semibold mb-3 leading-snug text-responsive">{question.stem}</h2>
         <p className="text-xs text-[var(--color-text-muted)] mb-4">Points: {question.maxScore}</p>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 sm:space-y-3">
         {question.options?.map((option, index) => {
           const active = selectedIndex === index;
           return (
@@ -443,9 +443,9 @@ function MCQRenderer({
               key={index}
               type="button"
               onClick={() => onChange({ selectedIndex: index })}
-              className={`w-full text-left px-5 py-4 rounded-xl border text-sm font-medium transition-all relative overflow-hidden ${active ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)]'}`}
+              className={`w-full text-left px-3 sm:px-5 py-3 sm:py-4 rounded-xl border text-sm font-medium transition-all relative overflow-hidden touch-target ${active ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-alt)]'}`}
             >
-              <span className="relative z-10">{option}</span>
+              <span className="relative z-10 text-responsive">{option}</span>
               {active && <span className="absolute inset-0 bg-gradient-to-r from-indigo-600/5 to-fuchsia-500/5" />}
             </button>
           );
@@ -467,9 +467,9 @@ function TextQuestionRenderer({
   const text = answer?.text || '';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-3 leading-snug">{question.stem}</h2>
+        <h2 className="text-base sm:text-lg font-semibold mb-3 leading-snug text-responsive">{question.stem}</h2>
         <p className="text-xs text-[var(--color-text-muted)] mb-2">Points: {question.maxScore}</p>
         <p className="text-xs text-[var(--color-text-muted)] mb-4">Expected length: {question.type === 'saq' ? '1-3 sentences' : '4-6 sentences (detailed answer)'}</p>
       </div>
@@ -477,8 +477,8 @@ function TextQuestionRenderer({
         value={text}
         onChange={(e) => onChange({ text: e.target.value })}
         placeholder={`Enter your ${question.type === 'saq' ? 'short' : 'detailed'} answer here...`}
-        rows={question.type === 'saq' ? 4 : 8}
-        className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none text-sm"
+        rows={question.type === 'saq' ? 3 : 6}
+        className="w-full px-3 sm:px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none text-sm mobile-scroll"
       />
       <div className="text-[10px] tracking-wide uppercase text-[var(--color-text-muted)]">Characters: {text.length}</div>
     </div>

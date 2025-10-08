@@ -6,9 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint",
-    "test:quick": "node scripts/quick-test.js",
-    "test:full": "node scripts/full-system-test.js"
+    "lint": "eslint"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",
