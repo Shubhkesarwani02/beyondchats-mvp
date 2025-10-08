@@ -71,6 +71,36 @@ export default function UploadPage() {
         body: formData,
       });
 
+      // Check if response is OK and contains JSON
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        let errorMessage = `Upload failed with status ${response.status}`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            // If JSON parsing fails, use default error
+            console.error('Failed to parse error response:', e);
+          }
+        } else {
+          // Try to get text response for non-JSON errors
+          try {
+            const textError = await response.text();
+            if (textError) {
+              errorMessage = textError.substring(0, 200); // Limit error message length
+            }
+          } catch (e) {
+            console.error('Failed to read error response:', e);
+          }
+        }
+        
+        setUploadResult({ error: errorMessage });
+        return;
+      }
+
+      // Parse successful response
       const result = await response.json();
       setUploadResult(result);
       
@@ -80,7 +110,9 @@ export default function UploadPage() {
       }
     } catch (error) {
       console.error('Upload failed:', error);
-      setUploadResult({ error: 'Upload failed' });
+      setUploadResult({ 
+        error: error instanceof Error ? error.message : 'Upload failed - Network or server error' 
+      });
     } finally {
       setUploading(false);
     }
@@ -98,11 +130,31 @@ export default function UploadPage() {
         body: JSON.stringify({ pdfId }),
       });
 
+      // Check if response is OK
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        let errorMessage = `Chunking failed with status ${response.status}`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            console.error('Failed to parse error response:', e);
+          }
+        }
+        
+        setChunkResult({ error: errorMessage });
+        return;
+      }
+
       const result = await response.json();
       setChunkResult(result);
     } catch (error) {
       console.error('Chunking failed:', error);
-      setChunkResult({ error: 'Chunking failed' });
+      setChunkResult({ 
+        error: error instanceof Error ? error.message : 'Chunking failed - Network or server error' 
+      });
     } finally {
       setChunking(false);
     }

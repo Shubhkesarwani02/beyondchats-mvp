@@ -177,8 +177,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (e.g., 10MB limit)
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    // Validate file size (e.g., 50MB limit to match Next.js config)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     if (file.size > MAX_FILE_SIZE) {
       console.error(`❌ File too large: ${file.size} bytes (max: ${MAX_FILE_SIZE})`);
       return NextResponse.json(

@@ -2,7 +2,11 @@
   "functions": {
     "app/api/upload/route.ts": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 3008
+    },
+    "app/api/chunk/route.ts": {
+      "maxDuration": 60,
+      "memory": 3008
     },
     "app/api/**/route.ts": {
       "maxDuration": 30
@@ -10,7 +14,7 @@
   },
   "headers": [
     {
-      "source": "/api/upload",
+      "source": "/api/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
@@ -18,7 +22,7 @@
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "POST, OPTIONS"
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
         },
         {
           "key": "Access-Control-Allow-Headers",
