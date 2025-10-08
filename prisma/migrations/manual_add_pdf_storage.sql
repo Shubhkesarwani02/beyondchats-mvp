@@ -1,0 +1,4 @@
+-- Add file storage columns to PDF table
+ALTER TABLE "PDF" ADD COLUMN IF NOT EXISTS "fileData" BYTEA;
+ALTER TABLE "PDF" ADD COLUMN IF NOT EXISTS "fileSize" INTEGER;
+ALTER TABLE "PDF" ADD COLUMN IF NOT EXISTS "mimeType" TEXT NOT NULL DEFAULT 'application/pdf';

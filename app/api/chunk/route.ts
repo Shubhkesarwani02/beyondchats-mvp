@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { pdf } from 'pdf-parse';
-import { readFile } from 'fs/promises';
-import path from 'path';
 import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
 interface ChunkData {
@@ -76,9 +74,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get PDF from database
+    // Get PDF from database with file data
     const pdfRecord = await prisma.pDF.findUnique({
       where: { id: pdfId },
+      select: {
+        id: true,
+        title: true,
+        fileData: true,
+        url: true,
+      }
     });
 
     if (!pdfRecord) {
@@ -88,12 +92,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read the PDF file
-    const filePath = path.join(process.cwd(), 'public', pdfRecord.url);
-    const dataBuffer = await readFile(filePath);
+    // Check if PDF has file data in database
+    if (!pdfRecord.fileData) {
+      return NextResponse.json(
+        { 
+          error: 'PDF file data not found in database',
+          hint: 'This PDF may have been uploaded before database storage was implemented. Please re-upload the PDF.'
+        },
+        { status: 404 }
+      );
+    }
+
+    console.log(`Processing chunks for PDF: ${pdfRecord.title}, size: ${pdfRecord.fileData.length} bytes`);
     
-    // Parse PDF and extract text
-    const pdfData = await pdf(dataBuffer);
+    // Parse PDF from database buffer
+    const pdfData = await pdf(pdfRecord.fileData);
     const text = pdfData.text;
     
     if (!text.trim()) {

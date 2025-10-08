@@ -10,47 +10,50 @@ datasource db {
 model PDF {
   id        String   @id @default(cuid())
   title     String
-  url       String
+  url       String // Keep for backward compatibility, will be empty for DB-stored PDFs
+  fileData  Bytes? // Store PDF file data directly in database
+  fileSize  Int? // Store file size in bytes
+  mimeType  String   @default("application/pdf")
   createdAt DateTime @default(now())
   chunks    Chunk[]
   quizzes   Quiz[]   @relation("QuizPDFs")
 }
 
 model Chunk {
-  id        String @id @default(cuid())
+  id        String                      @id @default(cuid())
   content   String
   pageNum   Int
   pdfId     String
-  pdf       PDF    @relation(fields: [pdfId], references: [id])
+  pdf       PDF                         @relation(fields: [pdfId], references: [id])
   embedding Unsupported("vector(768)")?
 }
 
 // Enhanced quiz models
 model Quiz {
-  id          String        @id @default(cuid())
-  title       String
-  createdBy   String?
-  createdAt   DateTime      @default(now())
-  numMcq      Int           @default(0)
-  numSaq      Int           @default(0)
-  numLaq      Int           @default(0)
-  metadata    Json?
-  questions   Question[]
-  attempts    QuizAttempt[]
-  pdfs        PDF[]         @relation("QuizPDFs")
+  id        String        @id @default(cuid())
+  title     String
+  createdBy String?
+  createdAt DateTime      @default(now())
+  numMcq    Int           @default(0)
+  numSaq    Int           @default(0)
+  numLaq    Int           @default(0)
+  metadata  Json?
+  questions Question[]
+  attempts  QuizAttempt[]
+  pdfs      PDF[]         @relation("QuizPDFs")
 }
 
 model Question {
-  id             String           @id @default(cuid())
+  id             String          @id @default(cuid())
   quizId         String
-  qtype          String           // 'mcq' | 'saq' | 'laq'
+  qtype          String // 'mcq' | 'saq' | 'laq'
   stem           String
-  expectedAnswer String?          // for SAQ/LAQ
-  guidance       Json?            // rubric, keywords etc
-  maxScore       Int              @default(4)
-  source         Json?            // [{pdfId, page, snippet}]
+  expectedAnswer String? // for SAQ/LAQ
+  guidance       Json? // rubric, keywords etc
+  maxScore       Int             @default(4)
+  source         Json? // [{pdfId, page, snippet}]
   explanation    String?
-  quiz           Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz           Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
   mcqOptions     McqOption[]
   attemptAnswers AttemptAnswer[]
 }
@@ -82,7 +85,7 @@ model AttemptAnswer {
   attemptId  String
   questionId String
   qtype      String
-  answerJson Json        // {selectedIndex:0} or {text:"..."}
+  answerJson Json // {selectedIndex:0} or {text:"..."}
   score      Int?
   maxScore   Int?
   feedback   String?
@@ -92,6 +95,6 @@ model AttemptAnswer {
 
 model UserProgress {
   userId       String   @id
-  progressJson Json     // e.g. {topic: {attempts: n, avg_score: ..}}
+  progressJson Json // e.g. {topic: {attempts: n, avg_score: ..}}
   updatedAt    DateTime @default(now()) @updatedAt
 }
