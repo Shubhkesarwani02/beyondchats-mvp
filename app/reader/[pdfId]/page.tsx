@@ -30,17 +30,23 @@ export default function ReaderPage() {
     const fetchPdf = async () => {
       try {
         setLoading(true);
+        setError(null);
         const response = await fetch(`/api/pdf/${activePdfId}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
 
         if (data.success) {
           setPdf(data.pdf);
         } else {
-          setError('PDF not found');
+          setError(data.error || 'PDF not found');
         }
       } catch (err) {
         console.error('Error fetching PDF:', err);
-        setError('Failed to load PDF');
+        setError(err instanceof Error ? err.message : 'Failed to load PDF');
       } finally {
         setLoading(false);
       }

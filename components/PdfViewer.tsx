@@ -55,7 +55,29 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
         setLoading(true);
         setError(null);
         
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        // Configure loading task with better error handling
+        const loadingTask = pdfjsLib.getDocument({
+          url: pdfUrl,
+          // Add CORS support
+          withCredentials: false,
+          // Add better error handling
+          httpHeaders: {
+            'Accept': 'application/pdf',
+          },
+          // Disable range requests for better compatibility
+          disableRange: false,
+          // Disable streaming for production compatibility
+          disableStream: false,
+        });
+
+        // Add progress listener
+        loadingTask.onProgress = (progress: { loaded: number; total: number }) => {
+          if (progress.total > 0) {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            console.log(`Loading PDF: ${percent}%`);
+          }
+        };
+        
         const pdf = await loadingTask.promise;
         
         setPdfDocument(pdf);
@@ -65,7 +87,26 @@ export default function PdfViewer({ pdfUrl, currentPage, onPageChange }: PdfView
         setLoading(false);
       } catch (err) {
         console.error('PDF load error:', err);
-        setError('Failed to load PDF. Please try again.');
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to load PDF. ';
+        if (err instanceof Error) {
+          if (err.message.includes('404')) {
+            errorMessage += 'PDF file not found.';
+          } else if (err.message.includes('403')) {
+            errorMessage += 'Access denied.';
+          } else if (err.message.includes('CORS')) {
+            errorMessage += 'Cross-origin request blocked.';
+          } else if (err.message.includes('network')) {
+            errorMessage += 'Network error. Check your connection.';
+          } else {
+            errorMessage += err.message || 'Please try again.';
+          }
+        } else {
+          errorMessage += 'Please try again.';
+        }
+        
+        setError(errorMessage);
         setLoading(false);
       }
     };
