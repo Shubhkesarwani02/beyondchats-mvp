@@ -7,8 +7,6 @@ import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 export const runtime = 'nodejs';
 export const maxDuration = 10; // Maximum execution time in seconds (Hobby plan limit)
 export const dynamic = 'force-dynamic'; // Disable static optimization
-// Increase body size limit for file uploads (Vercel has 4.5MB default for Hobby, 50MB for Pro)
-export const bodyParser = false; // We'll handle formData parsing manually
 
 interface ChunkData {
   content: string;
@@ -147,6 +145,13 @@ export async function POST(request: NextRequest) {
   console.log('URL:', request.url);
   console.log('Content-Type:', request.headers.get('content-type'));
   
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+  
   try {
     // Parse form data with error handling
     let formData: FormData;
@@ -161,7 +166,7 @@ export async function POST(request: NextRequest) {
           details: formDataError instanceof Error ? formDataError.message : 'Unknown error',
           hint: 'This might be due to file size limits. Vercel Hobby has 4.5MB limit, Pro has 50MB limit.'
         },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
     
@@ -171,7 +176,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ No file in FormData');
       return NextResponse.json(
         { error: 'No file uploaded' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -182,7 +187,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ Invalid file type:', file.type);
       return NextResponse.json(
         { error: 'Only PDF files are allowed' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -192,7 +197,7 @@ export async function POST(request: NextRequest) {
       console.error(`❌ File too large: ${file.size} bytes (max: ${MAX_FILE_SIZE})`);
       return NextResponse.json(
         { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -229,7 +234,7 @@ export async function POST(request: NextRequest) {
       fileSize: file.size,
       message: 'File uploaded successfully to database',
       processing: processingResult,
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('❌ Upload error:', error);
     
@@ -247,7 +252,7 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'unknown'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
