@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { pdf } from 'pdf-parse';
 import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
+// Configure route segment for Vercel
+export const runtime = 'nodejs';
+export const maxDuration = 10; // Maximum execution time in seconds (Hobby plan limit)
+export const dynamic = 'force-dynamic';
+
 interface ChunkData {
   content: string;
   pageNum: number;

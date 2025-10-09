@@ -5,7 +5,7 @@ import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
 // Configure route segment for Vercel
 export const runtime = 'nodejs';
-export const maxDuration = 60; // Maximum execution time in seconds (for Pro plan)
+export const maxDuration = 10; // Maximum execution time in seconds (Hobby plan limit)
 export const dynamic = 'force-dynamic'; // Disable static optimization
 // Increase body size limit for file uploads (Vercel has 4.5MB default for Hobby, 50MB for Pro)
 export const bodyParser = false; // We'll handle formData parsing manually
