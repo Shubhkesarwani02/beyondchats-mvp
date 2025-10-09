@@ -7,6 +7,21 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '50mb',
     },
   },
+  
+  // Headers for CORS support
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+    ];
+  },
+  
   // Disable static optimization for API routes to ensure they run as serverless functions
   typescript: {
     ignoreBuildErrors: false,

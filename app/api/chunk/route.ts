@@ -137,36 +137,62 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    // Generate embeddings for all chunks
+    // Generate embeddings for chunks in smaller batches to avoid timeout
+    // Vercel Hobby: 10s limit, so we limit batch processing
     try {
       console.log('Generating embeddings for chunks...');
       const chunkTexts = chunks.map(chunk => chunk.content);
-      const embeddings = await generateBatchEmbeddings(chunkTexts);
       
-      // Update chunks with embeddings
-      const embeddingPromises = savedChunks.map((chunk, index) => {
-        const vectorString = formatVectorForDB(embeddings[index]);
+      // Process in batches of 10 to avoid timeout
+      const BATCH_SIZE = 10;
+      let processedCount = 0;
+      
+      for (let i = 0; i < savedChunks.length; i += BATCH_SIZE) {
+        const batch = savedChunks.slice(i, i + BATCH_SIZE);
+        const batchTexts = chunkTexts.slice(i, i + BATCH_SIZE);
         
-        return prisma.$executeRaw`
-          UPDATE "Chunk" 
-          SET embedding = ${vectorString}::vector 
-          WHERE id = ${chunk.id}
-        `;
-      });
+        try {
+          const embeddings = await generateBatchEmbeddings(batchTexts);
+          
+          const embeddingPromises = batch.map((chunk, idx) => {
+            const vectorString = formatVectorForDB(embeddings[idx]);
+            return prisma.$executeRaw`
+              UPDATE "Chunk" 
+              SET embedding = ${vectorString}::vector 
+              WHERE id = ${chunk.id}
+            `;
+          });
 
-      await Promise.all(embeddingPromises);
-      console.log('Successfully generated embeddings for all chunks');
+          await Promise.all(embeddingPromises);
+          processedCount += batch.length;
+          console.log(`Processed embeddings for ${processedCount}/${savedChunks.length} chunks`);
+        } catch (batchError) {
+          console.error(`Error processing batch ${i}-${i + BATCH_SIZE}:`, batchError);
+          // Continue with next batch even if one fails
+        }
+      }
+      
+      console.log(`Successfully generated embeddings for ${processedCount}/${savedChunks.length} chunks`);
+      
+      return NextResponse.json({
+        success: true,
+        message: `Successfully created ${savedChunks.length} chunks (${processedCount} with embeddings)`,
+        chunksCount: savedChunks.length,
+        embeddingsCount: processedCount,
+        pdfTitle: pdfRecord.title,
+      });
     } catch (embeddingError) {
       console.error('Error generating embeddings:', embeddingError);
-      // Continue without embeddings - they can be generated later via /api/embed
+      // Return success anyway since chunks are created
+      return NextResponse.json({
+        success: true,
+        message: `Successfully created ${savedChunks.length} chunks (embeddings can be generated later)`,
+        chunksCount: savedChunks.length,
+        embeddingsCount: 0,
+        pdfTitle: pdfRecord.title,
+        warning: 'Embeddings generation failed - use /api/embed to retry'
+      });
     }
-
-    return NextResponse.json({
-      success: true,
-      message: `Successfully created ${savedChunks.length} chunks with embeddings`,
-      chunksCount: savedChunks.length,
-      pdfTitle: pdfRecord.title,
-    });
   } catch (error) {
     console.error('Chunking error:', error);
     return NextResponse.json(

@@ -54,12 +54,14 @@ export default function UploadPage() {
     if (e.target.files) {
       const selectedFile = e.target.files[0];
       
-      // Validate file size (25MB limit for safety on Vercel)
-      const MAX_SIZE = 25 * 1024 * 1024; // 25MB
+      // Validate file size (4.5MB limit for Vercel Hobby plan)
+      // Change to 50MB if you're on Vercel Pro plan
+      const MAX_SIZE = 4.5 * 1024 * 1024; // 4.5MB
       if (selectedFile.size > MAX_SIZE) {
         setUploadResult({ 
-          error: `File too large (${(selectedFile.size/1024/1024).toFixed(2)}MB). Maximum size is 25MB. Please reduce the PDF size or split it into smaller files.` 
+          error: `File too large (${(selectedFile.size/1024/1024).toFixed(2)}MB). Maximum size is ${(MAX_SIZE/1024/1024).toFixed(1)}MB for Vercel Hobby plan. Please reduce the PDF size or upgrade to Pro plan for 50MB limit.` 
         });
+        setFile(null);
         return;
       }
       
@@ -190,7 +192,7 @@ export default function UploadPage() {
         <Card className="flex-1" interactive>
           <CardHeader>
             <CardTitle>Upload PDF</CardTitle>
-            <CardDescription>Supported: single PDF per upload (up to ~25MB)</CardDescription>
+            <CardDescription>Supported: single PDF per upload (max 4.5MB for Hobby plan)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-4 sm:p-8 text-center relative">
