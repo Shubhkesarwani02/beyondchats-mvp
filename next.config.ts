@@ -7,13 +7,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '50mb',
     },
   },
-  // Add API route body size limits
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-    responseLimit: false,
-  },
   // Disable static optimization for API routes to ensure they run as serverless functions
   typescript: {
     ignoreBuildErrors: false,

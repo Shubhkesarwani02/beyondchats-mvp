@@ -52,7 +52,18 @@ export default function UploadPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      
+      // Validate file size (25MB limit for safety on Vercel)
+      const MAX_SIZE = 25 * 1024 * 1024; // 25MB
+      if (selectedFile.size > MAX_SIZE) {
+        setUploadResult({ 
+          error: `File too large (${(selectedFile.size/1024/1024).toFixed(2)}MB). Maximum size is 25MB. Please reduce the PDF size or split it into smaller files.` 
+        });
+        return;
+      }
+      
+      setFile(selectedFile);
       setUploadResult(null);
       setChunkResult(null);
     }
@@ -62,6 +73,9 @@ export default function UploadPage() {
     if (!file) return;
 
     setUploading(true);
+    setUploadResult(null);
+    setChunkResult(null);
+    
     const formData = new FormData();
     formData.append('file', file);
 
@@ -74,12 +88,22 @@ export default function UploadPage() {
       // Check if response is OK and contains JSON
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
-        let errorMessage = `Upload failed with status ${response.status}`;
+        let errorMessage = `Upload failed (HTTP ${response.status})`;
+        
+        // Handle 405 Method Not Allowed specifically
+        if (response.status === 405) {
+          errorMessage = 'Server error: Upload endpoint not accessible. Please check deployment configuration.';
+        }
         
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
+            errorMessage = errorData.error || errorData.details || errorData.message || errorMessage;
+            
+            // Add hint if available
+            if (errorData.hint) {
+              errorMessage += ` Hint: ${errorData.hint}`;
+            }
           } catch (e) {
             // If JSON parsing fails, use default error
             console.error('Failed to parse error response:', e);
@@ -89,7 +113,7 @@ export default function UploadPage() {
           try {
             const textError = await response.text();
             if (textError) {
-              errorMessage = textError.substring(0, 200); // Limit error message length
+              errorMessage = textError.substring(0, 300); // Limit error message length
             }
           } catch (e) {
             console.error('Failed to read error response:', e);
@@ -111,7 +135,7 @@ export default function UploadPage() {
     } catch (error) {
       console.error('Upload failed:', error);
       setUploadResult({ 
-        error: error instanceof Error ? error.message : 'Upload failed - Network or server error' 
+        error: error instanceof Error ? error.message : 'Upload failed - Network or server error. Please check your internet connection and try again.' 
       });
     } finally {
       setUploading(false);

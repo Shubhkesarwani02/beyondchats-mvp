@@ -7,6 +7,8 @@ import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Maximum execution time in seconds (for Pro plan)
 export const dynamic = 'force-dynamic'; // Disable static optimization
+// Increase body size limit for file uploads (Vercel has 4.5MB default for Hobby, 50MB for Pro)
+export const bodyParser = false; // We'll handle formData parsing manually
 
 interface ChunkData {
   content: string;
@@ -142,19 +144,26 @@ async function processChunksAndEmbeddings(pdfId: string, buffer: Buffer) {
 export async function POST(request: NextRequest) {
   console.log('📤 Upload API called');
   console.log('Method:', request.method);
-  console.log('Headers:', Object.fromEntries(request.headers.entries()));
+  console.log('URL:', request.url);
+  console.log('Content-Type:', request.headers.get('content-type'));
   
   try {
-    // Verify this is a POST request
-    if (request.method !== 'POST') {
+    // Parse form data with error handling
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+      console.log('✅ FormData parsed successfully');
+    } catch (formDataError) {
+      console.error('❌ Failed to parse FormData:', formDataError);
       return NextResponse.json(
-        { error: 'Method not allowed' },
-        { status: 405, headers: { 'Allow': 'POST' } }
+        { 
+          error: 'Failed to parse form data',
+          details: formDataError instanceof Error ? formDataError.message : 'Unknown error',
+          hint: 'This might be due to file size limits. Vercel Hobby has 4.5MB limit, Pro has 50MB limit.'
+        },
+        { status: 400 }
       );
     }
-
-    const formData = await request.formData();
-    console.log('✅ FormData parsed successfully');
     
     const file = formData.get('file') as File;
     
