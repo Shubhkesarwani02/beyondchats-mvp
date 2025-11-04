@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function GET() {
   try {
     const pdfs = await prisma.pDF.findMany({
@@ -37,7 +49,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       pdfs: pdfsWithStatus
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Error fetching PDFs:', error);
     return NextResponse.json(
@@ -45,7 +57,7 @@ export async function GET() {
         error: 'Failed to fetch PDFs',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchSimilarChunks, globalSemanticSearch, getRelevantContext } from '@/lib/vector-search';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { query, pdfId, searchType = 'semantic', limit = 5, threshold = 0.7 } = await request.json();

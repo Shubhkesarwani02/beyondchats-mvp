@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { pdfId, chunkIds } = await request.json();
@@ -9,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (!pdfId) {
       return NextResponse.json(
         { error: 'PDF ID is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -37,7 +49,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'No chunks found that need embeddings',
         processedCount: 0,
-      });
+      }, { headers: corsHeaders });
     }
 
     // Extract text content for embedding generation
@@ -65,7 +77,7 @@ export async function POST(request: NextRequest) {
       message: `Successfully generated embeddings for ${chunks.length} chunks`,
       processedCount: chunks.length,
       pdfId: pdfId,
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Embedding generation error:', error);
     return NextResponse.json(
@@ -73,7 +85,7 @@ export async function POST(request: NextRequest) {
         error: 'Failed to generate embeddings',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -87,7 +99,7 @@ export async function GET(request: NextRequest) {
     if (!pdfId) {
       return NextResponse.json(
         { error: 'PDF ID is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -113,12 +125,12 @@ export async function GET(request: NextRequest) {
       pendingChunks: pendingChunks,
       isComplete: pendingChunks === 0,
       completionPercentage: totalChunks > 0 ? Math.round((embeddedCount / totalChunks) * 100) : 0,
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Error checking embedding status:', error);
     return NextResponse.json(
       { error: 'Failed to check embedding status' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

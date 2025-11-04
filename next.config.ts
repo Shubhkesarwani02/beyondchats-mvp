@@ -8,6 +8,25 @@ const nextConfig: NextConfig = {
     },
   },
   
+  // Webpack configuration to handle pdf-parse
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Externalize pdf-parse to avoid ESM issues
+      config.externals = config.externals || [];
+      config.externals.push('pdf-parse');
+    }
+    
+    // Ignore node-specific modules in client bundle
+    config.resolve = config.resolve || {};
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      canvas: false,
+    };
+    
+    return config;
+  },
+  
   // Headers for CORS support
   async headers() {
     return [

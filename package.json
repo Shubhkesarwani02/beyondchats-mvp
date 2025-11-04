@@ -4,14 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build --turbopack",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
     "verify": "tsx scripts/verify-deployment.ts",
     "db:migrate": "prisma migrate deploy",
-    "db:studio": "prisma studio",
-    "test:prod": "node scripts/test-production.js"
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

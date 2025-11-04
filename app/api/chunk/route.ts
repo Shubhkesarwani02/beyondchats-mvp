@@ -8,6 +8,18 @@ export const runtime = 'nodejs';
 export const maxDuration = 10; // Maximum execution time in seconds (Hobby plan limit)
 export const dynamic = 'force-dynamic';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 interface ChunkData {
   content: string;
   pageNum: number;
@@ -70,12 +82,16 @@ function createChunks(text: string, chunkSize: number = 1000, overlap: number = 
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('📦 Chunk API called');
+    console.log('Method:', request.method);
+    console.log('URL:', request.url);
+    
     const { pdfId } = await request.json();
     
     if (!pdfId) {
       return NextResponse.json(
         { error: 'PDF ID is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -93,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!pdfRecord) {
       return NextResponse.json(
         { error: 'PDF not found' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       );
     }
 
@@ -104,7 +120,7 @@ export async function POST(request: NextRequest) {
           error: 'PDF file data not found in database',
           hint: 'This PDF may have been uploaded before database storage was implemented. Please re-upload the PDF.'
         },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       );
     }
 
@@ -117,7 +133,7 @@ export async function POST(request: NextRequest) {
     if (!text.trim()) {
       return NextResponse.json(
         { error: 'No text found in PDF' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -180,7 +196,7 @@ export async function POST(request: NextRequest) {
         chunksCount: savedChunks.length,
         embeddingsCount: processedCount,
         pdfTitle: pdfRecord.title,
-      });
+      }, { headers: corsHeaders });
     } catch (embeddingError) {
       console.error('Error generating embeddings:', embeddingError);
       // Return success anyway since chunks are created
@@ -191,13 +207,13 @@ export async function POST(request: NextRequest) {
         embeddingsCount: 0,
         pdfTitle: pdfRecord.title,
         warning: 'Embeddings generation failed - use /api/embed to retry'
-      });
+      }, { headers: corsHeaders });
     }
   } catch (error) {
     console.error('Chunking error:', error);
     return NextResponse.json(
-      { error: 'Failed to process PDF chunks' },
-      { status: 500 }
+      { error: 'Failed to process PDF chunks', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500, headers: corsHeaders }
     );
   }
 }

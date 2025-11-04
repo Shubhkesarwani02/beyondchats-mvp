@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,7 +35,7 @@ export async function GET(
         console.log(`PDF not found for ID: ${id}`);
         return NextResponse.json(
           { error: 'PDF not found' },
-          { status: 404 }
+          { status: 404, headers: corsHeaders }
         );
       }
 
@@ -46,6 +53,7 @@ export async function GET(
             'Cache-Control': 'public, max-age=31536000',
             'Accept-Ranges': 'bytes',
             'Content-Length': pdf.fileData.length.toString(),
+            ...corsHeaders,
           },
         });
       } else {
@@ -55,7 +63,7 @@ export async function GET(
             error: 'PDF file data not found',
             hint: 'This PDF may have been uploaded before database storage was implemented'
           },
-          { status: 404 }
+          { status: 404, headers: corsHeaders }
         );
       }
     }
@@ -77,7 +85,7 @@ export async function GET(
       console.log(`PDF not found for ID: ${id}`);
       return NextResponse.json(
         { error: 'PDF not found' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       );
     }
 
@@ -85,7 +93,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       pdf
-    });
+    }, { headers: corsHeaders });
   } catch (error) {
     console.error('Error fetching PDF:', error);
     return NextResponse.json(
@@ -93,7 +101,7 @@ export async function GET(
         error: 'Failed to fetch PDF',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -103,9 +111,8 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
+      ...corsHeaders,
       'Allow': 'GET, OPTIONS',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
     },
   });
 }

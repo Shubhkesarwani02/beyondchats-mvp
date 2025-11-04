@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { performEnhancedRAG } from '@/lib/rag';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export interface ChatRequest {
   query: string;
   pdfId: string;
@@ -31,7 +43,7 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: 'Invalid JSON in request body' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -41,14 +53,14 @@ export async function POST(request: NextRequest) {
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
         { error: 'Query is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (!pdfId) {
       return NextResponse.json(
         { error: 'PDF ID is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -64,7 +76,7 @@ export async function POST(request: NextRequest) {
       retrievedChunks: ragResult.retrievedChunks
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: corsHeaders });
 
   } catch (error) {
     console.error('Chat API error:', error);
@@ -73,7 +85,7 @@ export async function POST(request: NextRequest) {
         error: 'Failed to process chat request',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -89,14 +101,14 @@ export async function GET(request: NextRequest) {
     if (!query) {
       return NextResponse.json(
         { error: 'Query parameter is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (!pdfId) {
       return NextResponse.json(
         { error: 'pdfId parameter is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -114,7 +126,7 @@ export async function GET(request: NextRequest) {
         error: 'Failed to process chat request',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
