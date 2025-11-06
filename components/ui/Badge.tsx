@@ -1,5 +1,3 @@
-import clsx from 'clsx';
-
 type BadgeVariant = 'default' | 'outline' | 'success' | 'warning' | 'danger';
 
 export function Badge({ children, variant = 'default', className }: { children: React.ReactNode; variant?: BadgeVariant; className?: string }) {
@@ -10,8 +8,11 @@ export function Badge({ children, variant = 'default', className }: { children: 
     warning: 'bg-amber-50 text-amber-700',
     danger: 'bg-red-50 text-red-600',
   };
+  
+  const classes = ['inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium tracking-wide', styles[variant], className].filter(Boolean).join(' ');
+  
   return (
-    <span className={clsx('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium tracking-wide', styles[variant], className)}>
+    <span className={classes}>
       {children}
     </span>
   );
