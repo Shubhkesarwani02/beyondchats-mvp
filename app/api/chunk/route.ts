@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { pdf } from 'pdf-parse';
 import { generateBatchEmbeddings, formatVectorForDB } from '@/lib/embeddings';
 
-// Configure route segment for Vercel
+// CRITICAL: Dynamic import to avoid worker issues in serverless
+// Must be done this way to prevent worker initialization
+
 export const runtime = 'nodejs';
-export const maxDuration = 10; // Maximum execution time in seconds (Hobby plan limit)
+export const maxDuration = 60; // Increased for PDF processing - adjust based on your plan
 export const dynamic = 'force-dynamic';
 
-// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Handle OPTIONS request for CORS preflight
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
@@ -25,194 +24,269 @@ interface ChunkData {
   pageNum: number;
 }
 
-// Function to split text into overlapping chunks
+/**
+ * Create chunks from text with overlap for better context preservation
+ * @param text - The full text to chunk
+ * @param chunkSize - Target size for each chunk (in characters)
+ * @param overlap - Number of characters to overlap between chunks
+ */
 function createChunks(text: string, chunkSize: number = 1000, overlap: number = 200): ChunkData[] {
   const chunks: ChunkData[] = [];
-  const lines = text.split('\n');
-  let currentChunk = '';
-  let currentPage = 1;
+  const pages = text.split(/\f/); // Split by form feed character (page break)
   
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    const pageText = pages[pageIndex].trim();
+    if (!pageText) continue;
     
-    // Check if this line indicates a new page (simple heuristic)
-    if (line.includes('Page ') || line.trim() === '' && currentChunk.length > chunkSize) {
-      if (currentChunk.trim()) {
-        chunks.push({
-          content: currentChunk.trim(),
-          pageNum: currentPage
-        });
-        
-        // Create overlap for next chunk
-        const words = currentChunk.split(' ');
-        const overlapWords = words.slice(-Math.floor(overlap / 5)); // Approximate overlap
-        currentChunk = overlapWords.join(' ') + ' ';
-        currentPage++;
-      } else {
-        currentChunk = '';
-      }
+    const pageNum = pageIndex + 1;
+    
+    // If the page is smaller than chunk size, use it as is
+    if (pageText.length <= chunkSize) {
+      chunks.push({ content: pageText, pageNum });
+      continue;
     }
     
-    currentChunk += line + '\n';
-    
-    // If chunk gets too large, split it
-    if (currentChunk.length >= chunkSize) {
-      chunks.push({
-        content: currentChunk.trim(),
-        pageNum: currentPage
-      });
+    // Split large pages into chunks with overlap
+    let startIndex = 0;
+    while (startIndex < pageText.length) {
+      const endIndex = Math.min(startIndex + chunkSize, pageText.length);
+      let chunkText = pageText.slice(startIndex, endIndex);
       
-      // Create overlap
-      const words = currentChunk.split(' ');
-      const overlapWords = words.slice(-Math.floor(overlap / 5));
-      currentChunk = overlapWords.join(' ') + ' ';
+      // Try to break at sentence boundary
+      if (endIndex < pageText.length) {
+        const lastPeriod = chunkText.lastIndexOf('. ');
+        const lastNewline = chunkText.lastIndexOf('\n');
+        const breakPoint = Math.max(lastPeriod, lastNewline);
+        
+        if (breakPoint > chunkSize * 0.5) {
+          chunkText = chunkText.slice(0, breakPoint + 1).trim();
+        }
+      }
+      
+      chunks.push({ content: chunkText, pageNum });
+      
+      // Move start index forward, accounting for overlap
+      startIndex += chunkText.length - overlap;
+      if (startIndex >= pageText.length) break;
     }
   }
   
-  // Add the last chunk if it has content
-  if (currentChunk.trim()) {
-    chunks.push({
-      content: currentChunk.trim(),
-      pageNum: currentPage
-    });
-  }
-  
-  return chunks;
+  return chunks.filter(chunk => chunk.content.length > 50); // Filter out very small chunks
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     console.log('📦 Chunk API called');
-    console.log('Method:', request.method);
-    console.log('URL:', request.url);
-    
+
     const { pdfId } = await request.json();
-    
     if (!pdfId) {
-      return NextResponse.json(
-        { error: 'PDF ID is required' },
-        { status: 400, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: 'PDF ID is required' }, { status: 400, headers: corsHeaders });
     }
 
-    // Get PDF from database with file data
+    // Fetch PDF record
     const pdfRecord = await prisma.pDF.findUnique({
       where: { id: pdfId },
-      select: {
-        id: true,
-        title: true,
-        fileData: true,
-        url: true,
-      }
+      select: { id: true, title: true, fileData: true, url: true },
     });
 
     if (!pdfRecord) {
-      return NextResponse.json(
-        { error: 'PDF not found' },
-        { status: 404, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: 'PDF not found' }, { status: 404, headers: corsHeaders });
     }
 
-    // Check if PDF has file data in database
     if (!pdfRecord.fileData) {
       return NextResponse.json(
-        { 
+        {
           error: 'PDF file data not found in database',
-          hint: 'This PDF may have been uploaded before database storage was implemented. Please re-upload the PDF.'
+          hint: 'Re-upload the PDF.',
         },
         { status: 404, headers: corsHeaders }
       );
     }
 
-    console.log(`Processing chunks for PDF: ${pdfRecord.title}, size: ${pdfRecord.fileData.length} bytes`);
+    console.log(`📄 Processing PDF: ${pdfRecord.title}`);
+    console.log(`📊 File size: ${pdfRecord.fileData.length} bytes`);
+
+    // 🔹 Extract text using pdfjs-dist (serverless-compatible)
+    let fullText = '';
+    let pdfDoc;
     
-    // Parse PDF from database buffer
-    const pdfData = await pdf(pdfRecord.fileData);
-    const text = pdfData.text;
-    
-    if (!text.trim()) {
+    try {
+      // Dynamic import to avoid worker initialization at module load time
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      
+      // CRITICAL: Set a dummy worker path to prevent worker loading
+      // PDF.js requires workerSrc to be a string, but won't actually try to load it
+      // if we configure the document to not use workers
+      if (pdfjsLib.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
+      }
+      
+      // Convert Buffer to Uint8Array for pdfjs-dist
+      const uint8Array = new Uint8Array(pdfRecord.fileData);
+      
+      // Load PDF document without worker
+      const loadingTask = pdfjsLib.getDocument({
+        data: uint8Array,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true,
+        disableAutoFetch: true,
+        disableStream: true,
+      });
+      
+      pdfDoc = await loadingTask.promise;
+      const numPages = pdfDoc.numPages;
+      console.log(`📄 PDF has ${numPages} pages`);
+
+      // Extract text from each page
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        try {
+          const page = await pdfDoc.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          // Concatenate text items with proper spacing
+          const pageText = textContent.items
+            .map((item) => {
+              // Type guard for TextItem
+              if ('str' in item && typeof item.str === 'string') {
+                return item.str;
+              }
+              return '';
+            })
+            .join(' ');
+          
+          // Add form feed character for page break
+          fullText += pageText + '\f';
+          
+          console.log(`✅ Processed page ${pageNum}/${numPages} (${pageText.length} chars)`);
+        } catch (pageError) {
+          console.error(`⚠️ Error processing page ${pageNum}:`, pageError);
+          // Continue with other pages
+        }
+      }
+
+      // Clean up PDF document
+      await pdfDoc.destroy();
+      
+    } catch (pdfError) {
+      console.error('❌ PDF parsing error:', pdfError);
+      throw new Error(`Failed to parse PDF: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`);
+    }
+
+    // Validate extracted text
+    const cleanText = fullText.trim();
+    if (!cleanText || cleanText.length < 10) {
       return NextResponse.json(
-        { error: 'No text found in PDF' },
+        { 
+          error: 'No readable text found in PDF',
+          hint: 'The PDF might be image-based or corrupted. Try a text-based PDF.',
+        },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Create chunks with sliding window
-    const chunks = createChunks(text, 1000, 200);
-    
-    // Save chunks to database first
+    console.log(`✅ Extracted ${cleanText.length} characters of text`);
+
+    // Create chunks with proper overlap
+    const chunks = createChunks(cleanText, 1000, 200);
+    console.log(`📦 Created ${chunks.length} chunks`);
+
+    if (chunks.length === 0) {
+      return NextResponse.json(
+        { error: 'No chunks could be created from the PDF' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Save chunks to database
+    console.log('💾 Saving chunks to database...');
     const savedChunks = await Promise.all(
       chunks.map((chunk) =>
         prisma.chunk.create({
-          data: {
-            content: chunk.content,
-            pageNum: chunk.pageNum,
-            pdfId: pdfId,
+          data: { 
+            content: chunk.content, 
+            pageNum: chunk.pageNum, 
+            pdfId 
           },
         })
       )
     );
 
-    // Generate embeddings for chunks in smaller batches to avoid timeout
-    // Vercel Hobby: 10s limit, so we limit batch processing
-    try {
-      console.log('Generating embeddings for chunks...');
-      const chunkTexts = chunks.map(chunk => chunk.content);
-      
-      // Process in batches of 10 to avoid timeout
-      const BATCH_SIZE = 10;
-      let processedCount = 0;
-      
-      for (let i = 0; i < savedChunks.length; i += BATCH_SIZE) {
-        const batch = savedChunks.slice(i, i + BATCH_SIZE);
-        const batchTexts = chunkTexts.slice(i, i + BATCH_SIZE);
-        
-        try {
-          const embeddings = await generateBatchEmbeddings(batchTexts);
-          
-          const embeddingPromises = batch.map((chunk, idx) => {
-            const vectorString = formatVectorForDB(embeddings[idx]);
-            return prisma.$executeRaw`
-              UPDATE "Chunk" 
-              SET embedding = ${vectorString}::vector 
-              WHERE id = ${chunk.id}
-            `;
-          });
+    console.log(`✅ Saved ${savedChunks.length} chunks`);
 
-          await Promise.all(embeddingPromises);
-          processedCount += batch.length;
-          console.log(`Processed embeddings for ${processedCount}/${savedChunks.length} chunks`);
-        } catch (batchError) {
-          console.error(`Error processing batch ${i}-${i + BATCH_SIZE}:`, batchError);
-          // Continue with next batch even if one fails
+    // Generate embeddings in batches
+    const BATCH_SIZE = 5; // Reduced for better reliability
+    let processedCount = 0;
+    let failedCount = 0;
+    
+    console.log('🔮 Generating embeddings...');
+
+    for (let i = 0; i < savedChunks.length; i += BATCH_SIZE) {
+      try {
+        // Check if we're approaching timeout
+        const elapsed = Date.now() - startTime;
+        if (elapsed > 50000) { // 50 seconds (buffer for 60s limit)
+          console.warn(`⚠️ Approaching timeout. Processed ${processedCount}/${savedChunks.length}`);
+          break;
         }
+
+        const batch = savedChunks.slice(i, i + BATCH_SIZE);
+        const batchTexts = chunks.slice(i, i + BATCH_SIZE).map((chunk) => chunk.content);
+        
+        const embeddings = await generateBatchEmbeddings(batchTexts);
+        
+        // Update chunks with embeddings
+        await Promise.all(
+          batch.map((chunk, idx) =>
+            prisma.$executeRaw`
+              UPDATE "Chunk"
+              SET embedding = ${formatVectorForDB(embeddings[idx])}::vector
+              WHERE id = ${chunk.id}
+            `
+          )
+        );
+        
+        processedCount += batch.length;
+        console.log(`✅ Processed embeddings ${processedCount}/${savedChunks.length}`);
+        
+      } catch (batchError) {
+        failedCount += Math.min(BATCH_SIZE, savedChunks.length - i);
+        console.error(`❌ Batch ${i / BATCH_SIZE + 1} failed:`, batchError);
+        // Continue with next batch
       }
-      
-      console.log(`Successfully generated embeddings for ${processedCount}/${savedChunks.length} chunks`);
-      
-      return NextResponse.json({
-        success: true,
-        message: `Successfully created ${savedChunks.length} chunks (${processedCount} with embeddings)`,
-        chunksCount: savedChunks.length,
-        embeddingsCount: processedCount,
-        pdfTitle: pdfRecord.title,
-      }, { headers: corsHeaders });
-    } catch (embeddingError) {
-      console.error('Error generating embeddings:', embeddingError);
-      // Return success anyway since chunks are created
-      return NextResponse.json({
-        success: true,
-        message: `Successfully created ${savedChunks.length} chunks (embeddings can be generated later)`,
-        chunksCount: savedChunks.length,
-        embeddingsCount: 0,
-        pdfTitle: pdfRecord.title,
-        warning: 'Embeddings generation failed - use /api/embed to retry'
-      }, { headers: corsHeaders });
     }
-  } catch (error) {
-    console.error('Chunking error:', error);
+
+    const totalTime = Date.now() - startTime;
+    console.log(`⏱️ Total processing time: ${(totalTime / 1000).toFixed(2)}s`);
+
     return NextResponse.json(
-      { error: 'Failed to process PDF chunks', details: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        success: true,
+        message: `Created ${savedChunks.length} chunks with ${processedCount} embeddings`,
+        pdfTitle: pdfRecord.title,
+        stats: {
+          totalChunks: savedChunks.length,
+          embeddingsGenerated: processedCount,
+          embeddingsFailed: failedCount,
+          processingTimeMs: totalTime,
+          textExtracted: cleanText.length,
+        },
+      },
+      { headers: corsHeaders }
+    );
+  } catch (error) {
+    const totalTime = Date.now() - startTime;
+    console.error('❌ Chunking error:', error);
+    console.error(`⏱️ Failed after ${(totalTime / 1000).toFixed(2)}s`);
+    
+    return NextResponse.json(
+      {
+        error: 'Failed to process PDF chunks',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        processingTimeMs: totalTime,
+      },
       { status: 500, headers: corsHeaders }
     );
   }

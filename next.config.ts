@@ -8,12 +8,20 @@ const nextConfig: NextConfig = {
     },
   },
   
-  // Webpack configuration to handle pdf-parse
+  // Webpack configuration for serverless PDF processing
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Externalize pdf-parse to avoid ESM issues
+      // Externalize canvas and other native modules
       config.externals = config.externals || [];
-      config.externals.push('pdf-parse');
+      // Note: pdfjs-dist/legacy doesn't need canvas
+      
+      // Prevent webpack from trying to bundle worker files
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'pdfjs-dist/build/pdf.worker.js': false,
+        'pdfjs-dist/build/pdf.worker.mjs': false,
+      };
     }
     
     // Ignore node-specific modules in client bundle
@@ -22,6 +30,10 @@ const nextConfig: NextConfig = {
       ...config.resolve.fallback,
       fs: false,
       canvas: false,
+      // pdfjs-dist specific fallbacks
+      path: false,
+      stream: false,
+      crypto: false,
     };
     
     return config;
